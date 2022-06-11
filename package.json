@@ -1,0 +1,24 @@
+{
+  "name": "bottle-me-maybe",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/haroun-b/bottle-me-maybe.git"
+  },
+  "author": "Caetano S. & Haroun B.",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/haroun-b/bottle-me-maybe/issues"
+  },
+  "homepage": "https://github.com/haroun-b/bottle-me-maybe#readme",
+  "devDependencies": {
+    "nodemon": "^2.0.16"
+  }
+}
