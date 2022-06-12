@@ -15,7 +15,8 @@ const bottleSchema = new Schema(
     },
     message: {
       type: String,
-      required: true
+      required: true,
+      maxlength: 300
     },
     latestFetch: {
       userId: {

@@ -12,6 +12,17 @@ const userSchema = new Schema(
       type: String,
       required: true,
       minlength: 8
+    },
+    email: {
+      type: String,
+      validate: {
+        validator: (str) => {
+          const regex = /^[a-z][-_+\.]?(([a-z]|\d)+[-_+\.]?)+([a-z]|\d)@(([a-z]|\d)+-?)+([a-z]|\d)(\.[a-z](([a-z]|\d)-?){0,30}([a-z]|\d))$/g;
+
+          return str.match(regex) !== null;
+        },
+        message: email => `${email.value} is not a valid email!`
+      }
     }
   },
   {
