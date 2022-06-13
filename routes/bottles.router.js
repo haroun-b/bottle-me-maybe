@@ -3,10 +3,10 @@ const Bottle = require(`../models/bottle.model`);
 const Crate = require(`../models/crate.model`);
 const User = require(`../models/user.model`);
 
-router.use(`../middleware/auth.middleware`);
+router.use(require(`../middleware/auth.middleware`));
 
-router.route(`/`)
-  .get(`/random`, async (req, res, next) => {
+
+router.get(`/random`, async (req, res, next) => {
     /*
     request:
     req.user: {
@@ -33,7 +33,7 @@ router.route(`/`)
       next(error);
     }
   })
-  .post(async (req, res, next) => {
+  router.post(``, async (req, res, next) => {
     // condition: author cannot reply to own first bottle
 
     /*
@@ -49,7 +49,7 @@ router.route(`/`)
     }
     */
   })
-  .patch(`/:id`, async (req, res, next) => {
+router.patch(`/:id`, async (req, res, next) => {
     /*
     request:
     req.user: {

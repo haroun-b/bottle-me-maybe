@@ -1,7 +1,8 @@
 const router = require(`express`).Router();
 const Crate = require(`../models/crate.model`);
 
-router.use(`../middleware/auth.middleware`)
+router.use(require(`../middleware/auth.middleware`));
+
 // get all the crates
 router.get(`/`, async (req, res, next) => {
   /*
@@ -14,7 +15,7 @@ router.get(`/`, async (req, res, next) => {
   // from db fetch all crates where: user.id === crate.creator.id || user.id === crate.creator.id
   const allCrates = await Crate.find()
 
-  if (user.id)
+  // if (user.id)
   // for every crate: 
   // if user.id === crate.creator.id, remove creator; else remove responder
   // for whichever party is left: if isAnonymous === true, change party(left) to be party(left): `Anonymous`, otherwise party(left): `username`

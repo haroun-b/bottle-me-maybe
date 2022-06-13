@@ -31,10 +31,8 @@ router.post(`/login`, async (req, res, next) => {
   */
 })
 
-// reset link structure: `/user/:id/?token=asihfij0293urjpefm0pjfw0`
-router.route(`/user/:id`)
   // reset password
-  .patch(`/reset-password`, async (req, res, next) => {
+router.patch(`/reset-password`, async (req, res, next) => {
     /*
       request:
       req.query.token: `asihfij0293urjpefm0pjfw0`
@@ -43,7 +41,7 @@ router.route(`/user/:id`)
     }
     */
   })
-  .delete(async (req, res, next) => {
+router.delete(async (req, res, next) => {
     /*
       request:
       req.headers.authorization: `Bearer asihfij0293urjpefm0pjfw0`
