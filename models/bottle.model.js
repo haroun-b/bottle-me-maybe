@@ -23,7 +23,7 @@ const bottleSchema = new Schema(
         type: Schema.Types.ObjectId,
         ref: `User`
       },
-      time: Date
+      time: Number
     }
   },
   {
