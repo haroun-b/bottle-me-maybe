@@ -1,5 +1,7 @@
 const router = require(`express`).Router();
-const Bottle = require("../models/bottle.model");
+const Bottle = require(`../models/bottle.model`);
+const Crate = require(`../models/crate.model`);
+const User = require(`../models/user.model`);
 
 router.use(`../middleware/auth.middleware`);
 
@@ -12,8 +14,23 @@ router.route(`/`)
       username
     }
     */
-    if (req.user) {
-      await Bottle.findOneAndUpdate({ latestFetch: { time: Date.now() - 30000} })
+    try {
+      const currentTime = Date.now();
+
+      const floatingCrates = await Crate.find({ "responder._id": null, isArchived: false }, { _id: 1, creator: 1 }),
+        randomIndex = Math.floor(Math.random() * floatingCrates.length),
+        randomCrate = floatingCrates[randomIndex],
+        randomBottle = await Bottle.findOne({ crate: randomCrate._id }),
+        bottleAuthor = `Anonymous`;
+
+        if (!randomCrate.creator.isAnonymous) {
+          bottleAuthor = await User.findById(randomBottle.authorId, {username: 1});
+        }
+
+        randomBottle.author = bottleAuthor;
+        res.status(200).json(randomBottle);      
+    } catch (error) {
+      next(error);
     }
   })
   .post(async (req, res, next) => {

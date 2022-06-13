@@ -3,12 +3,12 @@ const { Schema, model } = require(`mongoose`);
 
 const bottleSchema = new Schema(
   {
-    authorId: {
+    author: {
       type: Schema.Types.ObjectId,
       ref: `User`,
       required: true
     },
-    crateId: {
+    crate: {
       type: Schema.Types.ObjectId,
       ref: `Crate`,
       required: true
@@ -17,13 +17,6 @@ const bottleSchema = new Schema(
       type: String,
       required: true,
       maxlength: 300
-    },
-    latestFetch: {
-      userId: {
-        type: Schema.Types.ObjectId,
-        ref: `User`
-      },
-      time: Number
     }
   },
   {
