@@ -15,8 +15,6 @@ router.get(`/random`, async (req, res, next) => {
     }
     */
     try {
-      const currentTime = Date.now();
-
       const floatingCrates = await Crate.find({ "responder._id": null, isArchived: false }, { _id: 1, creator: 1 }),
         randomIndex = Math.floor(Math.random() * floatingCrates.length),
         randomCrate = floatingCrates[randomIndex],
