@@ -85,6 +85,14 @@ router
   .route(`/user/:id`)
   // reset password
   .patch(`/reset-password`, async (req, res, next) => {
+    try {
+      await User.findByIdAndUpdate(req.params.id, req.body);
+      res
+        .status(200)
+        .json({ message: `Good job, you updated ${req.params.id}` });
+    } catch (error) {
+      next(error);
+    }
     /*
       request:
       req.query.token: `asihfij0293urjpefm0pjfw0`
