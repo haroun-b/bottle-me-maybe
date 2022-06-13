@@ -23,6 +23,7 @@ const userSchema = new Schema(
         },
         message: email => `${email.value} is not a valid email!`
       }
+
     }
   },
   {
