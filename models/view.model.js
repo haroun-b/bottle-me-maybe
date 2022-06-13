@@ -3,7 +3,7 @@ const { Schema, model } = require(`mongoose`);
 
 const viewSchema = new Schema(
   {
-    bottleId: {
+    bottle: {
       type: Schema.Types.ObjectId,
       ref: `Bottle`,
       required: true
