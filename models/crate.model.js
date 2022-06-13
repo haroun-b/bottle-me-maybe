@@ -4,7 +4,7 @@ const { Schema, model } = require(`mongoose`);
 const crateSchema = new Schema(
   {
     isArchived: Boolean,
-    partyOne: {
+    creator: {
       id: {
         type: Schema.Types.ObjectId,
         ref: `User`,
@@ -12,7 +12,7 @@ const crateSchema = new Schema(
       },
       isAnonymous: Boolean
     },
-    partyTwo: {
+    responder: {
       id: {
         type: Schema.Types.ObjectId,
         ref: `User`,

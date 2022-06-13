@@ -1,18 +1,30 @@
 const router = require(`express`).Router();
+const Bottle = require("../models/bottle.model");
+
+router.use(`../middleware/auth.middleware`);
 
 router.route(`/`)
   .get(`/random`, async (req, res, next) => {
     /*
     request:
-    req.headers.authorization[optional]: `Bearer asihfij0293urjpefm0pjfw0`
+    req.user: {
+      id,
+      username
+    }
     */
+    if (req.user) {
+      await Bottle.findOneAndUpdate({ latestFetch: { time: Date.now() - 30000} })
+    }
   })
   .post(async (req, res, next) => {
     // condition: author cannot reply to own first bottle
 
     /*
     request:
-    req.headers.authorization: `Bearer asihfij0293urjpefm0pjfw0`
+    req.user: {
+      id,
+      username
+    }
     body: {
       message: string,
       crateId[optional]: string,   // undefined for first bottles
@@ -23,7 +35,10 @@ router.route(`/`)
   .patch(`/:id`, async (req, res, next) => {
     /*
     request:
-    req.headers.authorization: `Bearer asihfij0293urjpefm0pjfw0`
+    req.user: {
+      id,
+      username
+    }
     body: {
       message: string,
     }
