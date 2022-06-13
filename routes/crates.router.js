@@ -1,10 +1,14 @@
 const router = require(`express`).Router();
 
+router.use(`../middleware/auth.middleware`)
 // get all the crates
 router.get(`/`, async (req, res, next) => {
   /*
   request:
-  req.headers.authorization: `Bearer asihfij0293urjpefm0pjfw0`
+  req.user: {
+    id,
+    username
+  }
   */
 })
 
@@ -14,7 +18,10 @@ router.route(`/:id`)
     /*
     request:
     req.params.id = crateId
-    req.headers.authorization: `Bearer asihfij0293urjpefm0pjfw0`
+    req.user: {
+      id,
+      username
+    }
     */
   })
   // reveal username for one crate
@@ -22,14 +29,20 @@ router.route(`/:id`)
     /*
     request:
     req.params.id = crateId
-    req.headers.authorization: `Bearer asihfij0293urjpefm0pjfw0`
+    req.user: {
+      id,
+      username
+    }
     */
   })
   // abandon a crate
   .delete(async (req, res, next) => {
     /*
     request:
-    req.headers.authorization: `Bearer asihfij0293urjpefm0pjfw0`
+    req.user: {
+      id,
+      username
+    }
     req.params.id = crateId
     */
 

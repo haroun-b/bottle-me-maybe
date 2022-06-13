@@ -34,7 +34,7 @@ router.post(`/login`, async (req, res, next) => {
 // reset link structure: `/user/:id/?token=asihfij0293urjpefm0pjfw0`
 router.route(`/user/:id`)
   // reset password
-  .patch(async (req, res, next) => {
+  .patch(`/reset-password`, async (req, res, next) => {
     /*
       request:
       req.query.token: `asihfij0293urjpefm0pjfw0`

@@ -21,7 +21,7 @@ app.use(`/bottles`, require(`./routes/bottles.router`));
 app.use(`/user`, require(`./routes/user.router`));
 
 // adds error handling
-app.use(require(`./routes/error-handling.router`));
+app.use(require(`./middleware/error-handling.middleware`));
 
 
 // starts the server
