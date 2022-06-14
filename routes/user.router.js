@@ -140,9 +140,9 @@ router.patch(`/reset-password`, async (req, res, next) => {
 router.use(require(`../middleware/auth.middleware`));
 router.use(require(`../middleware/access-restricting.middleware`));
 
-router.delete(`/:id`, async (req, res, next) => {
+router.delete(`/`, async (req, res, next) => {
   try {
-    await User.findByIdAndDelete(req.params.id);
+    await User.findByIdAndDelete(user.id);
     res.sendStatus(204);
   } catch (error) {
     next(error);
