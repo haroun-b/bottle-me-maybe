@@ -5,7 +5,6 @@ const Crate = require(`../models/crate.model`);
 const User = require(`../models/user.model`);
 
 
-
 router.use(require(`../middleware/auth.middleware`));
 
 router.get(`/random`, async (req, res, next) => {
