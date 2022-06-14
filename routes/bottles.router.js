@@ -1,20 +1,31 @@
 const router = require(`express`).Router();
+const mongoose = require("mongoose");
 const Bottle = require(`../models/bottle.model`);
 const Crate = require(`../models/crate.model`);
 const User = require(`../models/user.model`);
 
 
+router.use(require(`../middleware/auth.middleware`));
+
 router.get(`/random`, async (req, res, next) => {
-  /*
-  request:
-  req.user: {
-    id,
-    username
-  }
-  */
   try {
-    const floatingCrates = await Crate.find({ "responder._id": null, isArchived: false }, { _id: 1, creator: 1 }),
-      randomIndex = Math.floor(Math.random() * floatingCrates.length),
+    const query = { "responder.id": null, isArchived: false };
+    
+    // users shouldn't get their own bottles
+    const {user} = req;
+    if (user) {
+      query["creator.id"] = { $ne: user.id };
+    }
+
+    const floatingCrates = await Crate.find(query, { _id: 1, creator: 1 });
+
+    if (!floatingCrates.length) {
+      res.status(200).json([]);
+      return;
+    }
+
+
+    const randomIndex = Math.floor(Math.random() * floatingCrates.length),
       randomCrate = floatingCrates[randomIndex],
       randomBottle = await Bottle.findOne({ crate: randomCrate._id }),
       bottleAuthor = `Anonymous`;
@@ -30,8 +41,7 @@ router.get(`/random`, async (req, res, next) => {
   }
 })
 
-router.use(require(`../middleware/auth.middleware`));
-router.post(``, async (req, res, next) => {
+router.post(`/`, async (req, res, next) => {
   // condition: author cannot reply to own first bottle
 
   /*
@@ -47,37 +57,45 @@ router.post(``, async (req, res, next) => {
   }
   */
   try {
-    const { body, user } = req;
+    const { user } = req;
+    const { message, crateId, revealUsername } = req.body;
     let crate;
 
-    if (!body.crateId) {
-      crate = await Crate.insertOne({
-        isArchived: false,
-        creator: {
-          id: user.id,
-          isAnonymous: body.revealUsername
-        }
-      });
+    if (!crateId) {
+      const creator = { id: user.id };
+      if (revealUsername) {
+        creator.isAnonymous = revealUsername;
+      }
+      crate = await Crate.create({ creator });
+
     } else if (mongoose.isValidObjectId(crateId)) {
       // check that crate exists
       const foundCrate = await Crate.findById(crateId);
 
-      if (foundCrate) {
-        crate = foundCrate;
+      if (!foundCrate) {
+        res.status(404).json({ message: `no such crate with id: ${crateId}.` });
+        return;
       }
+      if (foundCrate.creator.id.toString() === user.id && !foundCrate.responder.id) {
+        res.status(403).json({ message: `Cannot reply until this bottle is picked by another user` });
+        return;
+      }
+
+      crate = foundCrate;
     } else {
       // error invalid crateId
+      res.status(400).json({ message: `${crateId} is not a valid crate id.` });
+      return;
     }
 
-    const createdBottle = await Bottle.insertOne({
+    const createdBottle = await Bottle.create({
       author: user.id,
       crate: crate._id,
-      message: body.message
+      message: message
     });
 
     res.status(201).json(createdBottle);
 
-    // otherwise we create a new crate and a new bottle with the crateId inside
   } catch (error) {
     next(error);
   }
@@ -94,16 +112,24 @@ router.patch(`/:id`, async (req, res, next) => {
   }
   */
   try {
-    const foundBottle = await Bottle.findById(req.params.id).populate(`responder`);
+    const foundBottle = await Bottle.findById(req.params.id).populate(`crate`);
 
     if (!foundBottle) {
       // 404
-    }
-    if (foundBottle.responder.id) {
-      //  not possible to update a bottle that is part of a conversation
+      res.status(404).json({ message: `No such bottle with id: ${req.params.id}.` });
+      return;
     }
 
-    const updatedMessage = await Bottle.findByIdAndUpdate(req.params.id, { message }, {new: true});
+    const { crate } = foundBottle;
+
+    if (crate.responder.id || crate.isArchived) {
+      //  not possible to update a bottle that is part of a conversation
+      res.status(403).json({ message: `Cannot update the bottle with id: ${req.params.id}, because it is part of a conversation.` });
+      return;
+    }
+
+    const { message } = req.body;
+    const updatedMessage = await Bottle.findByIdAndUpdate(req.params.id, { message }, { new: true });
 
     res.status(200).json(updatedMessage);
 
