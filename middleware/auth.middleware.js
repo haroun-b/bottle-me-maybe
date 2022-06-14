@@ -16,7 +16,7 @@ async function auth(req, res, next) {
     const foundUser = await User.findOne({ username });
 
     if (foundUser) {
-      req.user = { id: foundUser._id, username: foundUser.username };
+      req.user = { id: foundUser.id, username: foundUser.username };
     } else {
       delete req.user;
     }
