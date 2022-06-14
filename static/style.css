@@ -74,6 +74,62 @@ section {
     font-family:sans-serif;
     font-weight: bold;
     color: rgb(168, 254, 81);
-    border-radius:5%;
+    border-radius: 5%;
 }
 
+
+
+.cratesDiv {
+    background-color:rgb(200, 246, 230);
+    width: 900px;
+    height: 900px;
+    position: absolute;
+    left: 24%;
+    top: 5%;
+border-radius: 2%;
+display: flex;
+flex-direction: row;
+flex-wrap:wrap;
+justify-content: space-evenly;
+align-items: center;
+}
+
+.crateConversation {
+    font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+font-size: 3rem;
+color: rgb(138, 57, 0);
+font-weight: bold;
+order: 1;
+position: absolute;
+top: -1%;
+
+
+}
+
+.userCrate {
+    background-color: rgb(252, 236, 217);
+    width: 750px;
+    height: 700px;
+    border-radius: 1%;
+    position: relative;
+    order: 2;
+    text-align:center;
+    border: 2px;
+    border-color: black;
+
+}
+
+
+
+.userMessage {
+    display: flex;
+    padding: 10px 0px 0px 10px;
+
+}
+
+
+
+
+.hidden {
+    display: none;
+}
