@@ -4,6 +4,8 @@ const jwt = require(`jsonwebtoken`);
 const mongoose = require(`mongoose`);
 const Crate = require("../models/crate.model");
 const User = require("../models/user.model");
+const nodemailer = require(`nodemailer`);
+
 
 router.post("/signup", async (req, res, next) => {
   try {
@@ -115,14 +117,34 @@ router.patch(`/reset-password`, async (req, res, next) => {
     }
 
 
-      // send the user a reset link via email
-      token = jwt.sign({ username }, process.env.TOKEN_SECRET, {
-        algorithm: "HS256",
-        expiresIn: "5m",
-      });
+    // send the user a reset link via email
+    token = jwt.sign({ username }, process.env.TOKEN_SECRET, {
+      algorithm: "HS256",
+      expiresIn: "5m",
+    });
 
-      res.status(200).json({ resetLink: `${process.env.BASE_URL}/user/reset-password/?token=${token}` });    // temp
-      return;
+
+    const transporter = nodemailer.createTransport({
+      service: 'Gmail',
+      auth: {
+        user: process.env.EMAIL_USERNAME,
+        pass: process.env.EMAIL_PASSWORD
+      }
+    });
+
+    const emailResMsg = await transporter.sendMail({
+      from: '"Bottle Me Maybe " <bottle.me.maybe@gmail.com>',
+      to: foundUser.email,
+      subject: 'Password Reset Link',
+      text: `${process.env.BASE_URL}/user/reset-password/?token=${token}`
+    });
+
+    console.log(emailResMsg);
+
+    res.status(200).json({ message: `Reset link sent to your email!` });
+
+    // res.status(200).json({ resetLink: `${process.env.BASE_URL}/user/reset-password/?token=${token}` });    // temp
+    return;
 
   } catch (error) {
     next(error);
