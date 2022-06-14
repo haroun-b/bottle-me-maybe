@@ -9,12 +9,12 @@ router.use(require(`../middleware/auth.middleware`));
 
 router.get(`/random`, async (req, res, next) => {
   try {
-    const query = { "responder.id": null, isArchived: false };
+    const query = { "responder.user": null, isArchived: false };
     
     // users shouldn't get their own bottles
     const {user} = req;
     if (user) {
-      query["creator.id"] = { $ne: user.id };
+      query["creator.user"] = { $ne: user.id };
     }
 
     const floatingCrates = await Crate.find(query, { _id: 1, creator: 1 });
@@ -41,6 +41,8 @@ router.get(`/random`, async (req, res, next) => {
   }
 })
 
+router.use(require(`../middleware/access-restricting.middleware`));
+
 router.post(`/`, async (req, res, next) => {
   // condition: author cannot reply to own first bottle
 
@@ -62,7 +64,7 @@ router.post(`/`, async (req, res, next) => {
     let crate;
 
     if (!crateId) {
-      const creator = { id: user.id };
+      const creator = { user: user.id };
       if (revealUsername) {
         creator.isAnonymous = revealUsername;
       }
@@ -76,7 +78,7 @@ router.post(`/`, async (req, res, next) => {
         res.status(404).json({ message: `no such crate with id: ${crateId}.` });
         return;
       }
-      if (foundCrate.creator.id.toString() === user.id && !foundCrate.responder.id) {
+      if (foundCrate.creator.user.toString() === user.id && !foundCrate.responder.user) {
         res.status(403).json({ message: `Cannot reply until this bottle is picked by another user` });
         return;
       }
@@ -122,7 +124,7 @@ router.patch(`/:id`, async (req, res, next) => {
 
     const { crate } = foundBottle;
 
-    if (crate.responder.id || crate.isArchived) {
+    if (crate.responder.user || crate.isArchived) {
       //  not possible to update a bottle that is part of a conversation
       res.status(403).json({ message: `Cannot update the bottle with id: ${req.params.id}, because it is part of a conversation.` });
       return;

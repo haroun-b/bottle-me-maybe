@@ -3,7 +3,7 @@ const Crate = require(`../models/crate.model`);
 
 
 router.use(require(`../middleware/auth.middleware`));
-
+router.use(require(`../middleware/access-restricting.middleware`));
 // get all the crates
 router.get(`/`, async (req, res, next) => {
   /*
@@ -13,16 +13,40 @@ router.get(`/`, async (req, res, next) => {
     username
   }
   */
-  // from db fetch all crates where: user.id === crate.creator.id || user.id === crate.responder.id
-  const allCrates = await Crate.find(user.id === Crate.creator.id || user.id === Crate.responder.id);
+  // from db fetch all crates where: user.id === crate.creator.user || user.id === crate.responder.user
 
-  // if (user.id)
-  // for every crate: 
+  try {
+    const { user } = req;
+    const allCrates =
+      await Crate
+        .find({ $or: [{ "creator.user": user.id }, { "responder.user": user.id }] })
+        .populate(`creator.user`)
+        .populate(`responder.user`);
 
-  // if user.id === crate.creator.id, remove creator; else remove responder
-  // for whichever party is left: if isAnonymous === true, change party(left) to be party(left): `Anonymous`, otherwise party(left): `username`
+    allCrates.forEach(crate => {
+      crate = crate._doc;
 
-  // send all crates back to user
+      if (!crate.creator.user) {
+        crate.creator = null;
+      } else if (crate.creator.isAnonymous && crate.creator.user.id !== user.id) {
+        crate.creator = `Anonymous`
+      } else {
+        crate.creator = crate.creator.user.username;
+      }
+
+      if (!crate.responder.user) {
+        crate.responder = null;
+      } else if (crate.responder.isAnonymous && crate.responder.user.id !== user.id) {
+        crate.responder = `Anonymous`
+      } else {
+        crate.responder = crate.responder.user.username;
+      }
+    });
+
+    res.status(200).json(allCrates);
+  } catch (error) {
+    next(error);
+  }
 });
 
 router
@@ -38,7 +62,7 @@ router
     }
     */
     // from db fetch crate where: req.params.id === crate.id
-    // if user.id === crate.creator.id, remove creator; else remove responder
+    // if user.id === crate.creator.user, remove creator; else remove responder
     // for whichever party is left: if isAnonymous === true, change party(left) to be party(left): `Anonymous`, otherwise party(left): `username`
     // send crate back to user
   })
@@ -55,12 +79,12 @@ router
 
     // from where: req.params.id === crate.id
 
-    // update crate.responder.id: user.id; and crate.responder.isAnonymous: false;
+    // update crate.responder.user: user.id; and crate.responder.isAnonymous: false;
 
     // from db fetch crate where: req.params.id === crate.id
     const foundCrate = await fetchCrate(req.params.id, req.user);
 
-    // if user.id === crate.creator.id, remove creator; else remove responder
+    // if user.id === crate.creator.user, remove creator; else remove responder
     // for whichever party is left: if isAnonymous === true, change party(left) to be party(left): `Anonymous`, otherwise party(left): `username`
 
     // send crate back to user
@@ -85,7 +109,7 @@ router
 
 async function fetchCrate(crateId, user) {
   // from db fetch crate where: crateId === crate.id
-  // if user.id === crate.creator.id, remove creator; else remove responder
+  // if user.id === crate.creator.user, remove creator; else remove responder
   // for whichever party is left: if isAnonymous === true, change party(left) to be party(left): `Anonymous`, otherwise party(left): `username`
   // send crate back to user
 }
