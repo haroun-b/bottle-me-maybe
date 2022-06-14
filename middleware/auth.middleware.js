@@ -1,5 +1,4 @@
 const jwt = require('jsonwebtoken'),
-  router = require(`express`).Router(),
   User = require('../models/user.model');
 
 

@@ -33,7 +33,7 @@ router.post("/signup", async (req, res, next) => {
     const createdUser = await User.create(user);
 
     if (crateId && mongoose.isValidObjectId(crateId)) {
-      await Crate.findByIdAndUpdate(crateId, { responder: { id: createdUser._id } });
+      await Crate.findByIdAndUpdate(crateId, { responder: { user: createdUser._id } });
     }
 
     const authToken = jwt.sign({ username }, process.env.TOKEN_SECRET, {
@@ -64,7 +64,7 @@ router.post("/login", async (req, res, next) => {
   }
 
   if (crateId && mongoose.isValidObjectId(crateId)) {
-    await Crate.findByIdAndUpdate(crateId, { responder: { id: foundUser._id } });
+    await Crate.findByIdAndUpdate(crateId, { responder: { user: foundUser._id } });
   }
 
   const authToken = jwt.sign({ username }, process.env.TOKEN_SECRET, {
@@ -136,6 +136,10 @@ router.patch(`/reset-password`, async (req, res, next) => {
   */
 })
 
+
+router.use(require(`../middleware/auth.middleware`));
+router.use(require(`../middleware/access-restricting.middleware`));
+
 router.delete(`/:id`, async (req, res, next) => {
   try {
     await User.findByIdAndDelete(req.params.id);
@@ -143,11 +147,6 @@ router.delete(`/:id`, async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-
-  /*
-    request:
-    req.headers.authorization: `Bearer asihfij0293urjpefm0pjfw0`
-  */
 });
 
 module.exports = router;

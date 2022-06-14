@@ -8,7 +8,7 @@ const crateSchema = new Schema(
       default: false
     },
     creator: {
-      id: {
+      user: {
         type: Schema.Types.ObjectId,
         ref: `User`,
         required: true
@@ -19,7 +19,7 @@ const crateSchema = new Schema(
       },
     },
     responder: {
-      id: {
+      user: {
         type: Schema.Types.ObjectId,
         ref: `User`,
         default: null
