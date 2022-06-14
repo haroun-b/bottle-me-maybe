@@ -1,9 +1,13 @@
 const router = require(`express`).Router();
+const bcrypt = require(`bcryptjs`);
+const jwt = require(`jsonwebtoken`);
+const mongoose = require(`mongoose`);
+const Crate = require("../models/crate.model");
+const User = require("../models/user.model");
 
 router.post("/signup", async (req, res, next) => {
   try {
-    const { username, password } = req.body;
-    console.log(req.body);
+    const { username, password, email, crateId } = req.body;
 
     const foundUser = await User.findOne({ username });
     if (foundUser) {
@@ -13,42 +17,41 @@ router.post("/signup", async (req, res, next) => {
       return;
     }
 
-    console.log(password);
-    const salt = await bcrypt.genSalt(saltRounds);
+    const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
     console.log({ hashedPassword });
 
-    const createdUser = await User.create({
+    const user = {
       username,
-      password: hashedPassword,
+      password: hashedPassword
+    };
+    if (email) {
+      user.email = email;
+    }
+
+    const createdUser = await User.create(user);
+
+    if (crateId && mongoose.isValidObjectId(crateId)) {
+      await Crate.findByIdAndUpdate(crateId, { responder: { id: createdUser._id } });
+    }
+
+    const authToken = jwt.sign({ username }, process.env.TOKEN_SECRET, {
+      algorithm: "HS256",
+      expiresIn: "12h",
     });
 
-    res.status(201).json(createdUser);
+    res.status(201).json({ username, authToken });
   } catch (error) {
     console.log(error);
     next(error);
   }
-  /*
-    request:
-    body: {
-      username: string,
-      password: string,
-      email[optional]: string,
-      crateId[optional]: string,  // included with signup and reply requests
-    }
-  */
-
-  /*
-  response: jwt
-  */
 });
 
 router.post("/login", async (req, res, next) => {
-  const { username, password } = req.body;
+  const { username, password, crateId } = req.body;
   const foundUser = await User.findOne({ username });
 
-  console.log(req.body);
   if (!foundUser) {
     res.status(404).json({ message: "username does not exist" });
     return;
@@ -59,60 +62,92 @@ router.post("/login", async (req, res, next) => {
     res.status(401).json({ message: "password does not match" });
     return;
   }
-  const payload = { username };
 
-  const authToken = jsonwebtoken.sign(payload, process.env.TOKEN_SECRET, {
+  if (crateId && mongoose.isValidObjectId(crateId)) {
+    await Crate.findByIdAndUpdate(crateId, { responder: { id: foundUser._id } });
+  }
+
+  const authToken = jwt.sign({ username }, process.env.TOKEN_SECRET, {
     algorithm: "HS256",
-    expiresIn: "1h",
+    expiresIn: "12h",
   });
 
-  res.status(200).json({ isLoggedIn: true, message: "Welcome " + username });
-  /*
-    request:
-    body: {
-      username: string,
-      password: string,
-      crateId[optional]: string,  // included with login and reply requests
-    }
-  */
-  /*
-  response: jwt
-  */
+  res.status(200).json({ username, authToken });
 });
 
-  // reset password
+// reset password
 router.patch(`/reset-password`, async (req, res, next) => {
-    try {
-      await User.findByIdAndUpdate(req.params.id, req.body);
-      res
-        .status(200)
-        .json({ message: `Good job, you updated ${req.params.id}` });
-    } catch (error) {
-      next(error);
-    }
-    /*
-      request:
-      req.query.token: `asihfij0293urjpefm0pjfw0`
-      body: {
-      password: string,
-    }
-    */
-  })
+  try {
+    const { username } = req.body;
+    const { password } = req.body;
+    let resetToken = req.query.token;
 
-router.delete(async (req, res, next) => {
-    try {
-      await User.findByIdAndDelete(req.params.id);
-      res
-        .status(200)
-        .json({ message: `Good job, you deleted ${req.params.id}` });
-    } catch (error) {
-      next(error);
+    if (resetToken) {
+      const payload = jwt.verify(resetToken, process.env.TOKEN_SECRET);
+      if (!password) {
+        res.status(400).json({ message: `Please provide a new password` });
+        return;
+      }
+
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
+
+      await User.findOneAndUpdate({ username: payload.username }, { password: hashedPassword });
+
+      res.status(200).json({ message: `You've successfully updated your password. Please login to continue.` });
     }
 
-    /*
-      request:
-      req.headers.authorization: `Bearer asihfij0293urjpefm0pjfw0`
-    */
-  });
+    if (!username) {
+      // res.status(200).sendFile()   // send html form
+      res.status(200).json({ message: `Please send your username in the body.` });    //temp
+      return;
+    }
+
+    const foundUser = await User.findOne({ username });
+
+    if (!foundUser) {
+      res.status(400).json({ message: `No such user by the name: ${username}` });
+      return;
+    }
+    if (!foundUser.email) {
+      res.status(400).json({ message: `${username} did not provide an email during signup` });
+      return;
+    }
+
+
+      // send the user a reset link via email
+      token = jwt.sign({ username }, process.env.TOKEN_SECRET, {
+        algorithm: "HS256",
+        expiresIn: "5m",
+      });
+
+      res.status(200).json({ resetLink: `${process.env.BASE_URL}/user/reset-password/?token=${token}` });    // temp
+      return;
+
+  } catch (error) {
+    next(error);
+  }
+  /*
+    request:
+    req.query.token: `asihfij0293urjpefm0pjfw0`
+    body: {
+    password: string,
+  }
+  */
+})
+
+router.delete(`/:id`, async (req, res, next) => {
+  try {
+    await User.findByIdAndDelete(req.params.id);
+    res.sendStatus(204);
+  } catch (error) {
+    next(error);
+  }
+
+  /*
+    request:
+    req.headers.authorization: `Bearer asihfij0293urjpefm0pjfw0`
+  */
+});
 
 module.exports = router;

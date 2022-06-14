@@ -19,7 +19,7 @@ app.use(express.urlencoded({ extended: false }));
 // adds routing
 app.use(`/crates`, require(`./routes/crates.router`));
 app.use(`/bottles`, require(`./routes/bottles.router`));
-// app.use(`/user`, require(`./routes/user.router`));
+app.use(`/user`, require(`./routes/user.router`));
 
 // adds error handling
 app.use(require(`./middleware/error-handling.middleware`));
