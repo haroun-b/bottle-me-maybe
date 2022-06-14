@@ -3,6 +3,8 @@ const mongoose = require("mongoose");
 const Bottle = require(`../models/bottle.model`);
 const Crate = require(`../models/crate.model`);
 const User = require(`../models/user.model`);
+const View = require("../models/view.model");
+const geoip = require('geoip-lite');
 
 
 router.use(require(`../middleware/auth.middleware`));
@@ -10,9 +12,9 @@ router.use(require(`../middleware/auth.middleware`));
 router.get(`/random`, async (req, res, next) => {
   try {
     const query = { "responder.user": null, isArchived: false };
-    
+
     // users shouldn't get their own bottles
-    const {user} = req;
+    const { user } = req;
     if (user) {
       query["creator.user"] = { $ne: user.id };
     }
@@ -34,12 +36,56 @@ router.get(`/random`, async (req, res, next) => {
       bottleAuthor = await User.findById(randomBottle.author, { username: 1 });
     }
 
-    randomBottle.author = bottleAuthor;
+    const bottleViews = await View.count({ bottle: randomBottle.id });
+
+    randomBottle._doc.author = bottleAuthor;
+    randomBottle._doc.views = bottleViews;
     res.status(200).json(randomBottle);
+
+    const { ip } = req;
+    let location = null;
+    if (geoip.lookup(ip)) {
+      const {
+        country,
+        region,
+        city,
+        ll: [latitude, longitude],
+        area: accuracyRadius
+      } = geoip.lookup(ip);
+
+      location = {
+        country,
+        region,
+        city,
+        latitude,
+        longitude,
+        accuracyRadius
+      }
+    }
+
+    await View.create({ bottle: randomBottle.id, location });
   } catch (error) {
     next(error);
   }
 })
+
+router.get(`/:id/views`, async (req, res, next) => {
+  try {
+    const { user } = req;
+    const foundBottle = await Bottle.findById(req.params.id);
+
+    if (!foundBottle) {
+      res.status(404).json({ message: `No such bottle with id: ${req.params.id}.` });
+    }
+
+    const bottleViews = await View.find({bottle: foundBottle.id}, {_id: 1, createdAt: 1, location: 1});
+
+    res.status(200).json(bottleViews);
+  } catch (error) {
+    next(error);
+  }
+})
+
 
 router.use(require(`../middleware/access-restricting.middleware`));
 
