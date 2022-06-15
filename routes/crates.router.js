@@ -64,16 +64,9 @@ router
           .json({ message: `No such crate with id: ${req.params.id}.` });
       }
 
-      const userIsCreator = user.id === foundCrate.creator.user.id;
-      await structureCrate(foundCrate, user);
-
-      const foundCrateDoc = foundCrate._doc;
-      const crateCreator = foundCrateDoc.creator
-        ? foundCrate.creator.user
-        : null;
-      const crateResponder = foundCrateDoc.responder
-        ? foundCrate.responder.user
-        : null;
+      const creatorId = foundCrate.creator.user.id;
+      const crateCreator = getCrateParticipant(foundCrate, user, "creator");
+      const crateResponder = getCrateParticipant(foundCrate, user, "responder");
 
       const crateBottles = await Bottle.find(
         { crate: foundCrate.id },
@@ -82,17 +75,15 @@ router
 
       for (let bottle of crateBottles) {
         console.log(bottle.author.toString(), user.id);
-        if (
-          (bottle.author.toString() === user.id && userIsCreator) ||
-          (bottle.author.toString() !== user.id && !userIsCreator)
-        ) {
+
+        if (bottle.author.equals(creatorId)) {
           bottle._doc.author = crateCreator;
         } else {
           bottle._doc.author = crateResponder;
         }
       }
 
-      res.status(200).json(crateBottles);
+      res.status(200).json({ ...foundCrate._doc, bottles: crateBottles });
     } catch (error) {
       next(error);
     }
@@ -211,37 +202,32 @@ router.patch(`/:id/reveal-username`, async (req, res, next) => {
   }
 });
 
+function getCrateParticipant(crate, user, participant) {
+  let result = {};
+  if (!crate[participant].user) {
+    result = null;
+  } else if (
+    crate[participant].isAnonymous &&
+    crate[participant].user.id !== user.id
+  ) {
+    result.user = `Anonymous`;
+    result.isAnonymous = true;
+  } else {
+    result.user = crate[participant].user.username;
+    result.isAnonymous = crate[participant].isAnonymous;
+  }
+  return result;
+}
+
 async function structureCrate(crate, user) {
   const [latestBottle] = await Bottle.find(
     { crate: crate.id },
     { author: 1, message: 1, _id: 0 },
     { sort: { createdAt: -1 }, limit: 1 }
   );
-  let crateCreator = {},
-    crateResponder = {};
 
-  if (!crate.creator.user) {
-    crateCreator = null;
-  } else if (crate.creator.isAnonymous && crate.creator.user.id !== user.id) {
-    crateCreator.user = `Anonymous`;
-    crateCreator.isAnonymous = true;
-  } else {
-    crateCreator.user = crate.creator.user.username;
-    crateCreator.isAnonymous = crate.creator.isAnonymous;
-  }
-
-  if (!crate.responder.user) {
-    crateResponder = null;
-  } else if (
-    crate.responder.isAnonymous &&
-    crate.responder.user.id !== user.id
-  ) {
-    crateResponder.user = `Anonymous`;
-    crateResponder.isAnonymous = true;
-  } else {
-    crateResponder.user = crate.responder.user.username;
-    crateResponder.isAnonymous = crate.responder.isAnonymous;
-  }
+  const crateCreator = getCrateParticipant(crate, user, "creator");
+  const crateResponder = getCrateParticipant(crate, user, "responder");
 
   latestBottle._doc.author =
     latestBottle.author.toString() === crate.creator.user.id
