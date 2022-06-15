@@ -38,7 +38,10 @@ router.get(`/random`, async (req, res, next) => {
 
     randomBottle._doc.author = bottleAuthor;
     randomBottle._doc.views = bottleViews;
-    res.status(200).json(randomBottle);
+    res.status(200).json({
+      ...randomBottle._doc,
+      replyPath: `/crates/${randomBottle.crate}/bottles`,
+    });
 
     const { ip } = req;
     let location = null;
