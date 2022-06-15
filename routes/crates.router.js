@@ -94,7 +94,7 @@ router.route(`/:id`)
   .get(async (req, res, next) => {
     try {
       const { user } = req;
-      const crateId = req.id;
+      const crateId = req.params.id;
       const foundCrate = await Crate.findOne({
         _id: crateId,
         $or: [{ "creator.user": user.id }, { "responder.user": user.id }],

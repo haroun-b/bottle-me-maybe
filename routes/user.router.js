@@ -182,6 +182,7 @@ router.patch(`/reset-password`, async (req, res, next) => {
       }
     });
 
+    // use .env for the from field
     const emailResMsg = await transporter.sendMail({
       from: '`Bottle Me Maybe ` <bottle.me.maybe@gmail.com>',
       to: foundUser.email,
