@@ -1,30 +1,19 @@
+const { handleError } = require(`../utils/helpers.function`);
 const router = require(`express`).Router();
 const Crate = require(`../models/crate.model`);
 const Bottle = require(`../models/bottle.model`);
-const { create, findByIdAndUpdate } = require("../models/crate.model");
 
 router.use(require(`../middleware/auth.middleware`));
 router.use(require(`../middleware/access-restricting.middleware`));
 // get all the crates
 router.get(`/`, async (req, res, next) => {
-  /*
-  request:
-  req.user: {
-    id,
-    username
-  }
-  */
-  // from db fetch all crates where: user.id === crate.creator.user || user.id === crate.responder.user
-
   try {
     const { user } = req;
     const allCrates = await Crate.find(
       { $or: [{ "creator.user": user.id }, { "responder.user": user.id }] },
-      { __v: 0 }
-    )
+      { __v: 0 })
       .populate(`creator.user`)
       .populate(`responder.user`);
-    console.log(allCrates);
 
     for (let crate of allCrates) {
       await structureCrate(crate, user);
@@ -32,36 +21,96 @@ router.get(`/`, async (req, res, next) => {
 
     res.status(200).json(allCrates);
   } catch (error) {
-    next(error);
+    handleError(error);
   }
 });
 
-router
-  .route(`/:id`)
+router.post(`/:id/bottles`, async (req, res, next) => {
+  // condition: author cannot reply to own first bottle
+  try {
+    const { user } = req;
+    const crateId = req.id;
+    const { message, revealUsername } = req.body;
+
+    if (!mongoose.isValidObjectId(crateId)) {
+      res.status(400)
+        .json({
+          errors: [{
+            path: `id`,
+            message: `${crateId} is not a valid crate id.`
+          }]
+        });
+      return;
+    }
+
+    const foundCrate = await Crate.findById(crateId);
+
+    if (!foundCrate) {
+      res.status(404)
+        .json({
+          errors: [{
+            path: `crate`,
+            message: `Crate: ${crateId} does not exist.`
+          }]
+        });
+      return;
+    }
+
+    if (
+      foundCrate.creator.user.toString() === user.id &&
+      !foundCrate.responder.user
+    ) {
+      res.status(403)
+        .json({
+          errors: [{
+            path: `crate`,
+            message: `To add another bottle to crate: ${crateId}, another user must join it first.`
+          }]
+        });
+      return;
+    }
+
+    const crateResponder = {
+      "responder.user": user.id,
+      "responder.isAnonymous": !revealUsername
+    };
+
+    await Crate.findByIdAndUpdate(crateId, crateResponder);
+
+    const createdBottle = await Bottle.create({
+      author: user.id,
+      crate: crateId,
+      message,
+    });
+
+    res.status(201).json(createdBottle);
+  } catch (error) {
+    handleError(error);
+  }
+});
+
+router.route(`/:id`)
   // get one crate
   .get(async (req, res, next) => {
-    /*
-    request:
-    req.params.id = crateId
-    req.user: {
-      id,
-      username
-    }
-    */
-
     try {
       const { user } = req;
+      const crateId = req.id;
       const foundCrate = await Crate.findOne({
-        _id: req.params.id,
+        _id: crateId,
         $or: [{ "creator.user": user.id }, { "responder.user": user.id }],
       })
         .populate(`creator.user`)
         .populate(`responder.user`);
 
       if (!foundCrate) {
-        res
-          .status(404)
-          .json({ message: `No such crate with id: ${req.params.id}.` });
+        res.status(404)
+          .json({
+            errors: [{
+              path: `crate`,
+              message: `Crate: ${crateId} does not exist.`
+            }]
+          });
+        return;
       }
 
       const creatorId = foundCrate.creator.user.id;
@@ -74,8 +123,6 @@ router
       );
 
       for (let bottle of crateBottles) {
-        console.log(bottle.author.toString(), user.id);
-
         if (bottle.author.equals(creatorId)) {
           bottle._doc.author = crateCreator;
         } else {
@@ -85,7 +132,7 @@ router
 
       res.status(200).json({ ...foundCrate._doc, bottles: crateBottles });
     } catch (error) {
-      next(error);
+      handleError(error);
     }
   })
   // abandon a crate
@@ -230,14 +277,14 @@ async function structureCrate(crate, user) {
   const crateResponder = getCrateParticipant(crate, user, "responder");
 
   latestBottle._doc.author =
-    latestBottle.author.toString() === crate.creator.user.id
+    latestBottle.author.equals(crate.creator.user.id)
       ? crateCreator
       : crateResponder;
 
-  crate = crate._doc;
-  crate.creator = crateCreator;
-  crate.responder = crateResponder;
-  crate.latestBottle = latestBottle;
+  
+  crate._doc.creator = crateCreator;
+  crate._doc.responder = crateResponder;
+  crate._doc.latestBottle = latestBottle;
 }
 
 module.exports = router;
