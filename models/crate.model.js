@@ -26,7 +26,7 @@ const crateSchema = new Schema(
       isAnonymous: {
         type: Boolean,
         default: true,
-      },
+      }
     },
   },
   {

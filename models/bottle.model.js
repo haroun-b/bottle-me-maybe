@@ -16,7 +16,8 @@ const bottleSchema = new Schema(
     message: {
       type: String,
       required: true,
-      maxlength: 300
+      maxLength: 300,
+      trim: true
     }
   },
   {
