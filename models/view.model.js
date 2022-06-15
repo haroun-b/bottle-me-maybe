@@ -8,7 +8,14 @@ const viewSchema = new Schema(
       ref: `Bottle`,
       required: true
     },
-    location: String
+    location: {
+      country: String,
+      region: String,
+      city: String,
+      latitude: Number,
+      longitude: Number,
+      accuracyRadius: Number,
+    }
   },
   {
     timestamps: true
