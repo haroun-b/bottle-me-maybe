@@ -9,5 +9,6 @@ signUp.addEventListener("click", () => {
 });
 
 getBottleButton.addEventListener("click", () => {
+  signUpDiv.classList.add("hidden");
   cratesDiv.classList.remove("hidden");
 });
