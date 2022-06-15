@@ -29,7 +29,7 @@ router.post(`/:id/bottles`, async (req, res, next) => {
   // condition: author cannot reply to own first bottle
   try {
     const { user } = req;
-    const crateId = req.id;
+    const crateId = req.params.id;
     const { message, revealUsername } = req.body;
 
     if (!mongoose.isValidObjectId(crateId)) {
@@ -93,7 +93,7 @@ router.route(`/:id`)
   // get one crate
   .get(async (req, res, next) => {
     try {
-      const { user } = req;
+      const { user } = req; req.id
       const crateId = req.params.id;
       const foundCrate = await Crate.findOne({
         _id: crateId,
