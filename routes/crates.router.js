@@ -1,4 +1,4 @@
-const { handleError } = require(`../utils/helpers.function`);
+const { handleError, structureCrate, isValidId, handleInvalidId, handleNotExist, getCrateParticipant } = require(`../utils/helpers.function`);
 const router = require(`express`).Router();
 const Crate = require(`../models/crate.model`);
 const Bottle = require(`../models/bottle.model`);
@@ -6,6 +6,22 @@ const Bottle = require(`../models/bottle.model`);
 
 // ==========================================================
 // ==========================================================
+router.all(`/:id`, (req, res, next) => {
+  try {
+    const crateId = req.params.id;
+
+    if (!isValidId(crateId)) {
+      handleInvalidId(crateId, res);
+      return;
+    }
+
+    req.crateId = crateId;
+    next();
+  } catch (err) {
+    handleError(err);
+  }
+});
+
 router.use(require(`../middleware/auth.middleware`));
 router.use(require(`../middleware/access-restricting.middleware`));
 
@@ -27,54 +43,34 @@ router.get(`/`, async (req, res, next) => {
     }
 
     res.status(200).json(allCrates);
-  } catch (error) {
-    handleError(error);
+  } catch (err) {
+    handleError(err, res, next);
   }
 });
 
 // ==========================================================
 // ==========================================================
 router.post(`/:id/bottles`, async (req, res, next) => {
-  // condition: author cannot reply to own first bottle
   try {
-    const { user } = req;
-    const crateId = req.params.id;
-    const { message, revealUsername } = req.body;
-
-    if (!mongoose.isValidObjectId(crateId)) {
-      res.status(400)
-        .json({
-          errors: [{
-            path: `id`,
-            message: `${crateId} is not a valid crate id.`
-          }]
-        });
-      return;
-    }
+    const { message, revealUsername } = req.body,
+      { user, crateId } = req;
 
     const foundCrate = await Crate.findById(crateId);
-
     if (!foundCrate) {
-      res.status(404)
-        .json({
-          errors: [{
-            path: `crate`,
-            message: `Crate: ${crateId} does not exist.`
-          }]
-        });
+      handleNotExist(`crate`, crateId, res);
       return;
     }
 
+    // condition: author cannot reply to own first bottle
     if (
       foundCrate.creator.user.toString() === user.id &&
       !foundCrate.responder.user
     ) {
       res.status(403)
         .json({
-          errors: [{
-            path: `crate`,
-            message: `To add another bottle to crate: ${crateId}, another user must join it first.`
-          }]
+          errors: {
+            crate: `To add another bottle to crate: '${crateId}', another user must join it first`
+          }
         });
       return;
     }
@@ -93,8 +89,8 @@ router.post(`/:id/bottles`, async (req, res, next) => {
     });
 
     res.status(201).json(createdBottle);
-  } catch (error) {
-    handleError(error);
+  } catch (err) {
+    handleError(err, res, next);
   }
 });
 
@@ -104,8 +100,14 @@ router.route(`/:id`)
   // get one crate
   .get(async (req, res, next) => {
     try {
-      const { user } = req; req.id
-      const crateId = req.params.id;
+      const { user } = req,
+        crateId = req.params.id;
+
+      if (!isValidId(crateId)) {
+        handleInvalidId(crateId, res);
+        return;
+      }
+
       const foundCrate = await Crate.findOne({
         _id: crateId,
         $or: [{ "creator.user": user.id }, { "responder.user": user.id }],
@@ -114,19 +116,13 @@ router.route(`/:id`)
         .populate(`responder.user`);
 
       if (!foundCrate) {
-        res.status(404)
-          .json({
-            errors: [{
-              path: `crate`,
-              message: `Crate: ${crateId} does not exist.`
-            }]
-          });
+        handleNotExist(`crate`, crateId, res);
         return;
       }
 
-      const creatorId = foundCrate.creator.user.id;
-      const crateCreator = getCrateParticipant(foundCrate, user, "creator");
-      const crateResponder = getCrateParticipant(foundCrate, user, "responder");
+      const creatorId = foundCrate.creator.user.id,
+        crateCreator = getCrateParticipant(foundCrate, user, "creator"),
+        crateResponder = getCrateParticipant(foundCrate, user, "responder");
 
       const crateBottles = await Bottle.find(
         { crate: foundCrate.id },
@@ -142,18 +138,25 @@ router.route(`/:id`)
       }
 
       res.status(200).json({ ...foundCrate._doc, bottles: crateBottles });
-    } catch (error) {
-      handleError(error);
+    } catch (err) {
+      handleError(err, res, next);
     }
   })
-// ==========================================================
+  // ==========================================================
   // abandon a crate
   .delete(async (req, res, next) => {
     try {
-      const { user } = req;
+      const { user } = req,
+        crateId = req.params.id;
+
+      if (!isValidId(crateId)) {
+        handleInvalidId(crateId, res);
+        return;
+      }
+
       const foundCrate = await Crate.findOne(
         {
-          _id: req.params.id,
+          _id: crateId,
           $or: [{ "creator.user": user.id }, { "responder.user": user.id }],
         },
         { __v: 0 }
@@ -162,9 +165,8 @@ router.route(`/:id`)
         .populate(`responder.user`);
 
       if (!foundCrate) {
-        res
-          .status(404)
-          .json({ message: `No such crate with id: ${req.params.id}.` });
+        handleNotExist(`crate`, crateId, res);
+        return;
       }
 
       if (!foundCrate.isArchived && foundCrate.responder) {
@@ -180,17 +182,17 @@ router.route(`/:id`)
           });
         }
 
-        await Bottle.updateMany({ author: user.id }, { author: null });
+        await Bottle.updateMany(
+          { author: user.id, crate: crateID },
+          { author: null });
       } else {
-        await Crate.findByIdAndDelete(foundCrate.id);
-        await Bottle.deleteMany({ crate: foundCrate.id });
+        await Crate.findByIdAndDelete(crateId);
+        await Bottle.deleteMany({ crate: crateId });
       }
 
-      res
-        .status(204)
-        .json({ message: `Crate: ${req.params.id} successfully abondened.` });
-    } catch (error) {
-      next(error);
+      res.sendStatus(204);
+    } catch (err) {
+      handleError(err, res, next);
     }
   });
 
@@ -199,23 +201,23 @@ router.route(`/:id`)
 // reserve spot on crate
 router.patch(`/:id/reserve`, async (req, res, next) => {
   try {
-    const { user } = req;
+    const { user, crateId } = req;
+
     const [foundCrate] = await Crate.findOne({
-      _id: req.params.id,
+      _id: crateId,
       "responder.user": null,
       isArchived: false,
     });
 
     if (!foundCrate) {
-      res
-        .status(404)
-        .json({ message: `No such crate with id: ${req.params.id}.` });
+      handleNotExist(`crate`, crateId, res);
+      return;
     }
 
-    await Crate.findByIdAndUpdate(foundCrate.id, { "responder.user": user.id });
+    await Crate.findByIdAndUpdate(crateId, { "responder.user": user.id });
     res.sendStatus(200);
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    handleError(err, res, next);
   }
 });
 
@@ -224,85 +226,50 @@ router.patch(`/:id/reserve`, async (req, res, next) => {
 // reveal username for one crate
 router.patch(`/:id/reveal-username`, async (req, res, next) => {
   try {
-    const { user } = req;
+    const { user, crateId } = req;
+
     const foundCrate = await Crate.findOne({
-      _id: req.params.id,
+      _id: crateId,
       $or: [{ "creator.user": user.id }, { "responder.user": user.id }],
     })
       .populate(`creator.user`)
       .populate(`responder.user`);
 
     if (!foundCrate) {
-      res
-        .status(404)
-        .json({ message: `No such crate with id: ${req.params.id}.` });
+      handleNotExist(`crate`, crateId, res);
+      return;
     }
 
     if (foundCrate.isArchived) {
-      res.status(400).json({ message: `This Crate is archived` });
+      res.status(400)
+        .json({
+          errors: {
+            crate: `${crateId} is archived`
+          }
+        });
       return;
     }
 
     if (foundCrate.creator.user.toString() === user.id) {
       if (foundCrate.creator.isAnonymous) {
-        await Crate.findByIdAndUpdate(foundCrate.id, {
+        await Crate.findByIdAndUpdate(crateId, {
           "creator.isAnonymous": false,
         });
       }
     } else {
       if (foundCrate.responder.isAnonymous) {
-        await Crate.findByIdAndUpdate(foundCrate.id, {
+        await Crate.findByIdAndUpdate(crateId, {
           "responder.isAnonymous": false,
         });
       }
     }
 
-    res
-      .status(200)
-      .json({ message: `You've successfully revealed your username.` });
-  } catch (error) {
-    next(error);
+    res.status(200)
+      .json({ message: `You've successfully revealed your username!` });
+  } catch (err) {
+    handleError(err, res, next);
   }
 });
-
-function getCrateParticipant(crate, user, participant) {
-  let result = {};
-
-  if (!crate[participant].user) {
-    result = null;
-  } else if (
-    crate[participant].isAnonymous &&
-    crate[participant].user.id !== user.id
-  ) {
-    result.user = `Anonymous`;
-    result.isAnonymous = true;
-  } else {
-    result.user = crate[participant].user.username;
-    result.isAnonymous = crate[participant].isAnonymous;
-  }
-  
-  return result;
-}
-
-async function structureCrate(crate, user) {
-  const [latestBottle] = await Bottle.find(
-    { crate: crate.id },
-    { author: 1, message: 1, _id: 0 },
-    { sort: { createdAt: -1 }, limit: 1 }
-  );
-
-  const crateCreator = getCrateParticipant(crate, user, `creator`);
-  const crateResponder = getCrateParticipant(crate, user, `responder`);
-
-  latestBottle._doc.author =
-    latestBottle.author.equals(crate.creator.user.id)
-      ? crateCreator
-      : crateResponder;
-  
-  crate._doc.creator = crateCreator;
-  crate._doc.responder = crateResponder;
-  crate._doc.latestBottle = latestBottle;
-}
 
 
 module.exports = router;
