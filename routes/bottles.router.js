@@ -1,4 +1,4 @@
-const { handleError } = require("../utils/helpers.function"),
+const { handleError, handleNotExist } = require("../utils/helpers.function"),
   router = require(`express`).Router(),
   Bottle = require(`../models/bottle.model`),
   Crate = require(`../models/crate.model`),
@@ -6,8 +6,28 @@ const { handleError } = require("../utils/helpers.function"),
   View = require("../models/view.model"),
   geoip = require("geoip-lite");
 
+// ==========================================================
+// ==========================================================
+router.all(`/:id`, (req, res, next) => {
+  try {
+    const bottleId = req.params.id;
+
+    if (!isValidId(bottleId)) {
+      handleInvalidId(bottleId, res);
+      return;
+    }
+
+    req.bottleId = bottleId;
+    next();
+  } catch (err) {
+    handleError(err);
+  }
+});
+
 router.use(require(`../middleware/auth.middleware`));
 
+// ==========================================================
+// ==========================================================
 router.get(`/random`, async (req, res, next) => {
   try {
     const query = { "responder.user": null, isArchived: false };
@@ -67,46 +87,45 @@ router.get(`/random`, async (req, res, next) => {
     }
 
     await View.create({ bottle: randomBottle.id, location });
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    handleError(err, res, next);
   }
 });
 
+// ==========================================================
+// ==========================================================
 router.get(`/:id/views`, async (req, res, next) => {
   try {
-    const { user } = req;
-    const bottleId = req.params.id
+    const { user, bottleId } = req;
 
     const foundBottle = await Bottle.findById(bottleId);
     if (!foundBottle) {
-      res.status(404)
-        .json({
-          errors: [{
-            path: `bottle`,
-            message: `Bottle: ${bottleId} does not exist.`
-          }]
-        });
+      handleNotExist(`bottle`, bottleId, res);
       return;
     }
 
     const bottleViews = await View.find(
-      { bottle: foundBottle.id },
+      { bottle: bottleId },
       { _id: 1, createdAt: 1, location: 1 }
     );
 
     res.status(200).json(bottleViews);
-  } catch (error) {
-    handleError(error);
+  } catch (err) {
+    handleError(err, res, next);
   }
 });
 
 
+// ==========================================================
+// ==========================================================
 router.use(require(`../middleware/access-restricting.middleware`));
 
+// ==========================================================
+// ==========================================================
 router.post(`/`, async (req, res, next) => {
   try {
-    const { user } = req;
-    const { message, revealUsername } = req.body;
+    const { user } = req,
+      { message, revealUsername } = req.body;
 
     const creator = {
       user: user.id,
@@ -114,6 +133,7 @@ router.post(`/`, async (req, res, next) => {
     };
 
     const createdCrate = await Crate.create({ creator });
+
     const createdBottle = await Bottle.create({
       author: user.id,
       crate: createdCrate.id,
@@ -121,24 +141,21 @@ router.post(`/`, async (req, res, next) => {
     });
 
     res.status(201).json(createdBottle);
-  } catch (error) {
-    handleError(error);
+  } catch (err) {
+    handleError(err, res, next);
   }
 });
 
+// ==========================================================
+// ==========================================================
 router.patch(`/:id`, async (req, res, next) => {
   try {
-    const bottleId = req.params.id;
-    const foundBottle = await Bottle.findById(bottleId).populate(`crate`);
+    const { user, bottleId } = req;
 
+    const foundBottle = await Bottle.findOne({ _id: bottleId, author: user.id })
+      .populate(`crate`);
     if (!foundBottle) {
-      res.status(404)
-        .json({
-          errors: [{
-            path: `bottle`,
-            message: `Bottle: ${bottleId} does not exist.`
-          }]
-        });
+      handleNotExist(`bottle`, bottleId, res);
       return;
     }
 
@@ -148,20 +165,19 @@ router.patch(`/:id`, async (req, res, next) => {
       //  not possible to update a bottle that is part of a conversation
       res.status(403)
         .json({
-          errors: [{
-            path: `crate`,
-            message: `Bottle: ${bottleId} cannot be updated, because it is part of a conversation.`
-          }]
+          errors: {
+            bottle: `${bottleId} cannot be updated, because it is part of a conversation`
+          }
         });
       return;
     }
 
     const { message } = req.body;
-    const updatedMessage = await Bottle.findByIdAndUpdate(bottleId, { message }, { new: true });
+    const updatedMessage = await Bottle.findByIdAndUpdate(bottleId, { message }, { new: true, runValidators: true });
 
     res.status(200).json(updatedMessage);
-  } catch (error) {
-    handleError(error);
+  } catch (err) {
+    handleError(err, res, next);
   }
 });
 
