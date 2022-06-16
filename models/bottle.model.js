@@ -16,7 +16,7 @@ const bottleSchema = new Schema(
     message: {
       type: String,
       required: true,
-      maxLength: 300,
+      maxLength: [300, `must not exceed 300 characters in length`],
       trim: true
     }
   },

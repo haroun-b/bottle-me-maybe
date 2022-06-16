@@ -1,4 +1,4 @@
-const { handleError, reserveCrate } = require(`../utils/helpers.function`),
+const { reserveCrate } = require(`../utils/helpers.function`),
   router = require(`express`).Router(),
   User = require(`../models/user.model`),
   bcrypt = require(`bcryptjs`),
@@ -8,29 +8,18 @@ const { handleError, reserveCrate } = require(`../utils/helpers.function`),
 
 router.post(`/signup`, async (req, res, next) => {
   try {
-    const { password, email, crateId } = req.body,
-      username = req.body.username.trim();
+    const { username, password, email, crateId } = req.body,
+      inputIsStr = ValidateStrInput({ username, password, crateId });
+
+      // check password length and type
+    if (!inputIsStr) {
+      return;
+    }
 
     const foundUser = await User.findOne({ username });
     if (foundUser) {
       res.status(401)
-        .json({
-          errors: [{
-            path: `username`,
-            message: `Username already exists. Try logging in instead.`
-          }]
-        });
-      return;
-    }
-
-    if (typeof password !== `string`) {
-      res.status(400)
-        .json({
-          errors: [{
-            path: `password`,
-            message: `Password must be of type: String.`
-          }]
-        });
+        .json({ message: `Username already exists. Try logging in instead` });
       return;
     }
 
@@ -41,7 +30,7 @@ router.post(`/signup`, async (req, res, next) => {
       username,
       password: hashedPassword
     };
-    if (email) {
+    if (email && typeof email === `string`) {
       user.email = email;
     }
 
@@ -57,21 +46,23 @@ router.post(`/signup`, async (req, res, next) => {
     });
 
     res.status(201).json({ username, authToken });
-  } catch (error) {
-    handleError(error);
+  } catch (err) {
+    next(err);
   }
 });
 
 router.post(`/login`, async (req, res, next) => {
-  const { username, password, crateId } = req.body;
+  const { username, password, crateId } = req.body,
+    inputIsStr = ValidateStrInput({ username, password, crateId });
+
+  if (!inputIsStr) {
+    return;
+  }
 
   const foundUser = await User.findOne({ username });
   if (!foundUser) {
     res.status(404).json({
-      errors: [{
-        path: `username`,
-        message: `Username: ${username} does not exist. Try signing up instead.`
-      }]
+      message: `Username: ${username} does not exist. Try signing up instead.`
     });
     return;
   }
@@ -80,10 +71,7 @@ router.post(`/login`, async (req, res, next) => {
   if (!isPasswordMatched) {
     res.status(401)
       .json({
-        errors: [{
-          path: `password`,
-          message: `Wrong password.`
-        }]
+        message: `Wrong password.`
       });
     return;
   }
@@ -110,22 +98,13 @@ router.patch(`/reset-password`, async (req, res, next) => {
       if (!password) {
         res.status(400)
           .json({
-            errors: [{
-              path: `password`,
-              message: `To reset your password, please provide a new one.`
-            }]
+            message: `To reset your password, please provide a new one.`
           });
         return;
       }
 
       if (typeof password !== `string`) {
-        res.status(400)
-          .json({
-            errors: [{
-              path: `password`,
-              message: `Password must be of type: String.`
-            }]
-          });
+        res.status(400).json({ message: `password must be of type: string` });
         return;
       }
 
@@ -139,10 +118,7 @@ router.patch(`/reset-password`, async (req, res, next) => {
 
     if (!username) {
       res.status(400).json({
-        errors: [{
-          path: `username`,
-          message: `To reset your password, please provide a username.`
-        }]
+        message: `To reset your password, please provide a username.`
       });
       return;
     }
@@ -151,19 +127,13 @@ router.patch(`/reset-password`, async (req, res, next) => {
 
     if (!foundUser) {
       res.status(404).json({
-        errors: [{
-          path: `username`,
-          message: `Username: ${username} does not exist.`
-        }]
+        message: `Username: ${username} does not exist.`
       });
       return;
     }
     if (!foundUser.email) {
       res.status(403).json({
-        errors: [{
-          path: `email`,
-          message: `Password reset not possible. ${username} did not provide an email during signup.`
-        }]
+        message: `Password reset not possible. ${username} did not provide an email during signup.`
       });
       return;
     }
@@ -194,7 +164,7 @@ router.patch(`/reset-password`, async (req, res, next) => {
 
     res.status(200).json({ message: `A password reset link was sent to your email!` });
   } catch (error) {
-    handleError(error);
+    next(error);
   }
 });
 
@@ -206,7 +176,7 @@ router.delete(`/`, async (req, res, next) => {
     await User.findByIdAndDelete(req.user.id);
     res.sendStatus(204);
   } catch (error) {
-    handleError(error);
+    next(error);
   }
 });
 

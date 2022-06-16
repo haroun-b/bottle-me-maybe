@@ -1,4 +1,4 @@
-const { handleError } = require('../utils/helpers.function'),
+const { handleTokenError } = require('../utils/helpers.function'),
   jwt = require('jsonwebtoken'),
   User = require('../models/user.model');
 
@@ -23,8 +23,8 @@ async function auth(req, res, next) {
     }
 
     next();
-  } catch (error) {
-    handleError(error);
+  } catch (err) {
+    handleTokenError(err);
   }
 }
 

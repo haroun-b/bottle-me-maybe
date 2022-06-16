@@ -1,23 +1,67 @@
+const mongoose = require(`mongoose`);
 const Crate = require(`../models/crate.model`);
 
+
 function reserveCrate(crateId, userId) {
-  if (mongoose.isValidObjectId(crateId)) {
+  if (isValidId(crateId)) {
     return Crate.findOneAndUpdate({ _id: crateId, "responder.user": null }, { responder: { user: userId } });
   }
-
-  // handle other case
 }
 
-function constructErrorResponse(eStatus, type, message) {
-  const errors = {
-    [type]: [],
+function isValidId(id) {
+  return mongoose.isValidObjectId(id);
+}
+
+function handleInvalidId(id, res, next) {
+  res.status(400)
+    .json({
+      errors: {
+        id: `${id} is not a valid id`
+      }
+    });
+}
+
+function handleNotExist(key, value, res, next) {
+  res.status(404)
+    .json({
+      errors: {
+        [key]: `${value} does not exist`
+      }
+    });
+}
+
+function isValidPasswd(password) {
+  return typeof password === `string` && password.length > 7;
+}
+
+function handleInvalidPasswd(password) {
+  res.status(400)
+    .json({
+      errors: {
+        password: `password must of type: 'string'. With at least 8 characters`
+      }
+    });
+}
+
+function handleTokenError(err) {
+  try {
+    let authentication = ``;
+
+    if (err.message.includes(`jwt expired`)) {
+      authentication = `Expired token. Please login to continue`;
+    } else {
+      authentication = `Invalid token`;
+    }
+
+    res.status(401).json({ authentication });
+  } catch (err) {
+    next(err);
   }
 }
 
-function handleError(err, res, next) {
+function handleSchemaError(err) {
   try {
-    console.log(err);
-    const errors = [];
+    const errors = {};
 
     if (!err.errors) {
       err.errors = [err];
@@ -27,28 +71,31 @@ function handleError(err, res, next) {
       e = err.errors[e];
 
       switch (e.kind) {
-        case `ObjectId`:
-          errors.push(`${req.documentInfo.model}: ${req.documentInfo.id} does not exist.`);
-          break;
         case `required`:
-          errors.push(`${e.path} is required`);
+          errors[e.path] = `${e.path} is required`;
           break;
-        case `enum`:
-          errors.push(`${e.value} is not a valid ${e.path}. Please choose one of the following: ${e.properties.enumValues.join(`; `)}`);
+        case `string`:
+          errors[e.path] = `${e.path} must be of type: 'string'`;
           break;
         default:
-          errors.push(`${e.stringValue} is not a valid ${e.path}`);
+          errors[e.path] = `${e.path} ${e.message}`;
       }
     }
 
-    res.status(400).json({errors});
-  } catch (error) {
-    next(error);
+    res.status(400).json({ errors });
+  } catch (err) {
+    next(err);
   }
 }
 
 
 module.exports = {
-  handleError,
-
+  reserveCrate,
+  isValidId,
+  handleInvalidId,
+  handleNotExist,
+  isValidPasswd,
+  handleInvalidPasswd,
+  handleTokenError,
+  handleSchemaError
 }

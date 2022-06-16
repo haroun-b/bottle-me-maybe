@@ -68,7 +68,7 @@ router.get(`/random`, async (req, res, next) => {
 
     await View.create({ bottle: randomBottle.id, location });
   } catch (error) {
-    handleError(error);
+    next(error);
   }
 });
 

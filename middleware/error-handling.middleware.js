@@ -1,18 +1,26 @@
 const router = require(`express`).Router();
 
 router.use((req, res, next) => {
-  // this middleware runs whenever requested page is not available
-  res.status(404).json({ message: "Requested resource not found" });
+  // runs whenever the requested resource is not found
+  res.status(404)
+    .json({
+      errors: {
+        resource: `Requested resource not found`
+      }
+    });
 });
 
 router.use((err, req, res, next) => {
-  // whenever you call next(err), this middleware will handle the error
-  // always logs the error
   console.error("ERROR", req.method, req.path, err);
 
-  // only render if the error ocurred before sending the response
+  // only renders if the error occurred before sending the response
   if (!res.headersSent) {
-    res.status(500).json({ message: "Internal server error" });
+    res.status(404)
+      .json({
+        errors: {
+          server: `Internal server error`
+        }
+      });
   }
 });
 
