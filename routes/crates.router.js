@@ -94,12 +94,21 @@ router.route(`/:id`, validateId)
       const { user } = req,
         crateId = req.params.id;
 
-      const foundCrate = await Crate.findOne({
-        _id: crateId,
-        $or: [{ "creator.user": user.id }, { "responder.user": user.id }],
-      })
-        .populate(`creator.user`)
-        .populate(`responder.user`);
+      const foundCrate = await Crate.findOne(
+        {
+          _id: crateId,
+          $or: [{ "creator.user": user.id }, { "responder.user": user.id }],
+        },
+        { __v: 0 }
+      )
+        .populate({
+          path: `creator.user`,
+          select: [`_id`, `username`, `isAnonymous`]
+        })
+        .populate({
+          path: `responder.user`,
+          select: [`_id`, `username`, `isAnonymous`]
+        });
 
       if (!foundCrate) {
         handleNotExist(`crate`, crateId, res);
@@ -109,6 +118,9 @@ router.route(`/:id`, validateId)
       const creatorId = foundCrate.creator.user.id,
         crateCreator = getCrateParticipant(foundCrate, user, "creator"),
         crateResponder = getCrateParticipant(foundCrate, user, "responder");
+
+      foundCrate._doc.creator.user = crateCreator;
+      foundCrate._doc.responder.user = crateResponder;
 
       const crateBottles = await Bottle.find(
         { crate: foundCrate.id },
