@@ -115,6 +115,27 @@ router.post(`/`, async (req, res, next) => {
     const { user } = req,
       { message, revealUsername } = req.body;
 
+
+    let userQuota = await User.findById(user.id, { dailyQuota: 1 });
+
+    if (Date.now() - userQuota.for > 86400000) {
+      userQuota = await User.findByIdAndUpdate(
+        user.id,
+        { dailyQuota: { for: Date.now() } },
+        { new: true, select: { dailyQuota: 1 } }
+      );
+    }
+    const remainingQuota = userQuota.newBottles;
+    if (remainingQuota < 1) {
+      res.status(403)
+        .json({
+          errors: {
+            quota: `You've exceeded your daily quota for new bottles. You can always reply to other people's bottles`
+          }
+        });
+      return;
+    }
+
     const creator = {
       user: user.id,
       isAnonymous: !revealUsername
@@ -130,6 +151,12 @@ router.post(`/`, async (req, res, next) => {
 
     delete createdBottle._doc.__v;
     res.status(201).json(createdBottle);
+
+
+    await User.findByIdAndUpdate(
+      user.id,
+      { dailyQuota: { newBottles: remainingQuota - 1 } }
+    );
   } catch (err) {
     handleError(err, res, next);
   }
