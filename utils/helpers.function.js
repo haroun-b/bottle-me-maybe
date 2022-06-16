@@ -10,7 +10,7 @@ function reserveCrate(crateId, userId) {
 }
 
 async function structureCrate(crate, user) {
-  const [latestBottle] = await Bottle.find(
+  const [newestBottle] = await Bottle.find(
     { crate: crate.id },
     { author: 1, message: 1, _id: 0 },
     { sort: { createdAt: -1 }, limit: 1 }
@@ -19,14 +19,16 @@ async function structureCrate(crate, user) {
   const crateCreator = getCrateParticipant(crate, user, `creator`);
   const crateResponder = getCrateParticipant(crate, user, `responder`);
 
-  latestBottle._doc.author =
-    latestBottle.author.equals(crate.creator.user.id)
-      ? crateCreator
-      : crateResponder;
-  
+  if (newestBottle) {
+    newestBottle._doc.author =
+      newestBottle.author.equals(crate.creator.user.id)
+        ? crateCreator
+        : crateResponder;
+    crate._doc.newestBottle = newestBottle;
+  }
+
   crate._doc.creator = crateCreator;
   crate._doc.responder = crateResponder;
-  crate._doc.latestBottle = latestBottle;
 }
 
 function getCrateParticipant(crate, user, participant) {
@@ -88,7 +90,9 @@ function handleError(err, res, next) {
     handleTokenError(err, res, next);
     return;
   }
-  if (err.name === `ValidatorError` || err.name === `CastError`) {
+
+  const mongooseErrors = [`ValidatorError`, `CastError`, `ValidationError`, `MongoServerError`];
+  if (mongooseErrors.includes(err.name)) {
     handleSchemaError(err, res, next);
     return;
   }
@@ -114,7 +118,16 @@ function handleTokenError(err, res, next) {
 
 function handleSchemaError(err, res, next) {
   try {
-    const errors = {};
+    let errors = {};
+
+
+    if (err.code === 11000) {
+      errors = err.keyValue;
+
+      errors.username += ` already exists. Try logging in instead`;
+      res.status(400).json({ errors });
+      return;
+    }
 
     if (!err.errors) {
       err.errors = [err];

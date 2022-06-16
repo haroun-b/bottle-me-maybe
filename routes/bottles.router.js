@@ -116,16 +116,16 @@ router.post(`/`, async (req, res, next) => {
       { message, revealUsername } = req.body;
 
 
-    let userQuota = await User.findById(user.id, { dailyQuota: 1 });
+    let { dailyQuota } = await User.findById(user.id, { dailyQuota: 1 });
 
-    if (Date.now() - userQuota.for > 86400000) {
-      userQuota = await User.findByIdAndUpdate(
+    if (Date.now() - dailyQuota.for > 86400000) {
+      dailyQuota = await User.findByIdAndUpdate(
         user.id,
         { dailyQuota: { for: Date.now(), newBottles: 20 } },
         { new: true, select: { dailyQuota: 1 } }
       );
     }
-    const remainingQuota = userQuota.newBottles;
+    const remainingQuota = dailyQuota.newBottles;
     if (remainingQuota < 1) {
       res.status(403)
         .json({
@@ -151,7 +151,6 @@ router.post(`/`, async (req, res, next) => {
 
     delete createdBottle._doc.__v;
     res.status(201).json(createdBottle);
-
 
     await User.findByIdAndUpdate(
       user.id,
@@ -190,7 +189,7 @@ router.patch(`/:id`, validateId, async (req, res, next) => {
     }
 
     const { message } = req.body;
-    const updatedMessage = await Bottle.findByIdAndUpdate(bottleId, { message }, { new: true, runValidators: true });
+    const updatedMessage = await Bottle.findByIdAndUpdate(bottleId, { message }, { new: true, runValidators: true, select: { __v: 0 } });
 
     res.status(200).json(updatedMessage);
   } catch (err) {

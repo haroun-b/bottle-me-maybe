@@ -5,7 +5,7 @@ const userSchema = new Schema(
   {
     username: {
       type: String,
-      unique: [true, `already exists. Try logging in instead`],
+      unique: true,
       required: true,
       maxLength: [20, `must not exceed 20 characters in length`],
       lowercase: true,

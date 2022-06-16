@@ -169,14 +169,14 @@ router.patch(`/reset-password`, async (req, res, next) => {
       from: `'Bottle Me Maybe ' <${process.env.EMAIL_USERNAME}>`,
       to: foundUser.email,
       subject: 'Password Reset Link',
-      text: `${process.env.BASE_URL}/user/reset-password/?token=${token}`
+      text: `${process.env.BASE_URL}/user/reset-password/?token=${resetToken}`
     });
 
     console.log(emailResMsg);
 
     res.status(200).json({ message: `A password reset link was sent to your email!` });
   } catch (err) {
-    handleError(err);
+    handleError(err, res, next);
   }
 });
 

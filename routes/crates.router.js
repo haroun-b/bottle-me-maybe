@@ -78,6 +78,7 @@ router.post(`/:id/bottles`, validateId, async (req, res, next) => {
       crate: crateId,
       message,
     });
+    delete createdBottle._doc.__v;
 
     res.status(201).json(createdBottle);
   } catch (err) {
@@ -87,9 +88,9 @@ router.post(`/:id/bottles`, validateId, async (req, res, next) => {
 
 // ==========================================================
 // ==========================================================
-router.route(`/:id`, validateId)
+router.route(`/:id`)
   // get one crate
-  .get(async (req, res, next) => {
+  .get(validateId, async (req, res, next) => {
     try {
       const { user } = req,
         crateId = req.params.id;
@@ -119,8 +120,8 @@ router.route(`/:id`, validateId)
         crateCreator = getCrateParticipant(foundCrate, user, "creator"),
         crateResponder = getCrateParticipant(foundCrate, user, "responder");
 
-      foundCrate._doc.creator.user = crateCreator;
-      foundCrate._doc.responder.user = crateResponder;
+      foundCrate._doc.creator = crateCreator;
+      foundCrate._doc.responder = crateResponder;
 
       const crateBottles = await Bottle.find(
         { crate: foundCrate.id },
@@ -142,7 +143,7 @@ router.route(`/:id`, validateId)
   })
   // ==========================================================
   // abandon a crate
-  .delete(async (req, res, next) => {
+  .delete(validateId, async (req, res, next) => {
     try {
       const { user } = req,
         crateId = req.params.id;
@@ -176,7 +177,7 @@ router.route(`/:id`, validateId)
         }
 
         await Bottle.updateMany(
-          { author: user.id, crate: crateID },
+          { author: user.id, crate: crateId },
           { author: null });
       } else {
         await Crate.findByIdAndDelete(crateId);
@@ -197,7 +198,7 @@ router.patch(`/:id/reserve`, validateId, async (req, res, next) => {
     const { user } = req,
       crateId = req.params.id;
 
-    const [foundCrate] = await Crate.findOne({
+    const foundCrate = await Crate.findOne({
       _id: crateId,
       "responder.user": null,
       isArchived: false,
