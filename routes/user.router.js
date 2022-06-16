@@ -3,7 +3,7 @@ const {
   isValidPasswd,
   handleInvalidPasswd,
   handleNotExist,
-  handleSchemaError
+  handleError
 } = require(`../utils/helpers.function`),
   router = require(`express`).Router(),
   User = require(`../models/user.model`),
@@ -46,7 +46,7 @@ router.post(`/signup`, async (req, res, next) => {
 
     res.status(201).json({ username, authToken });
   } catch (err) {
-    handleSchemaError(err, res, next)
+    handleError(err, res, next);
   }
 });
 
@@ -89,7 +89,7 @@ router.post(`/login`, async (req, res, next) => {
 
     res.status(200).json({ username, authToken });
   } catch (err) {
-    handleSchemaError(err, res, next)
+    handleError(err, res, next);
   }
 });
 
@@ -101,24 +101,26 @@ router.patch(`/reset-password`, async (req, res, next) => {
     let resetToken = req.query.token;
 
     if (resetToken) {
-      const payload = jwt.verify(resetToken, process.env.TOKEN_SECRET);
+      const { username } = jwt.verify(resetToken, process.env.TOKEN_SECRET);
       if (!password) {
         res.status(400)
           .json({
-            message: `To reset your password, please provide a new one.`
+            errors: {
+              password: `To reset your password, please provide a new one`
+            }
           });
         return;
       }
 
-      if (typeof password !== `string`) {
-        res.status(400).json({ message: `password must be of type: string` });
+      if (!isValidPasswd(password)) {
+        handleInvalidPasswd(res);
         return;
       }
 
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(password, salt);
+      const salt = await bcrypt.genSalt(10),
+        hashedPassword = await bcrypt.hash(password, salt);
 
-      await User.findOneAndUpdate({ username: payload.username }, { password: hashedPassword });
+      await User.findOneAndUpdate({ username }, { password: hashedPassword });
 
       res.status(200).json({ message: `You've successfully updated your password! Please login to continue.` });
     }
@@ -174,7 +176,7 @@ router.patch(`/reset-password`, async (req, res, next) => {
 
     res.status(200).json({ message: `A password reset link was sent to your email!` });
   } catch (err) {
-    handleSchemaError(err)
+    handleError(err);
   }
 });
 

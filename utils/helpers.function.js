@@ -43,6 +43,19 @@ function handleInvalidPasswd(res) {
     });
 }
 
+function handleError(err, res, next) {
+  if (err.name.includes(`Token`)) {
+    handleTokenError(err, res, next);
+    return;
+  }
+  if (err.name === `ValidatorError` || err.name === `CastError`) {
+    handleSchemaError(err, res, next);
+    return;
+  }
+
+  next(err);
+}
+
 function handleTokenError(err, res, next) {
   try {
     let authentication = ``;
@@ -96,6 +109,7 @@ module.exports = {
   handleNotExist,
   isValidPasswd,
   handleInvalidPasswd,
+  handleError,
   handleTokenError,
   handleSchemaError
 }

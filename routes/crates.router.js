@@ -3,12 +3,19 @@ const router = require(`express`).Router();
 const Crate = require(`../models/crate.model`);
 const Bottle = require(`../models/bottle.model`);
 
+
+// ==========================================================
+// ==========================================================
 router.use(require(`../middleware/auth.middleware`));
 router.use(require(`../middleware/access-restricting.middleware`));
+
+// ==========================================================
+// ==========================================================
 // get all the crates
 router.get(`/`, async (req, res, next) => {
   try {
     const { user } = req;
+
     const allCrates = await Crate.find(
       { $or: [{ "creator.user": user.id }, { "responder.user": user.id }] },
       { __v: 0 })
@@ -25,6 +32,8 @@ router.get(`/`, async (req, res, next) => {
   }
 });
 
+// ==========================================================
+// ==========================================================
 router.post(`/:id/bottles`, async (req, res, next) => {
   // condition: author cannot reply to own first bottle
   try {
@@ -89,6 +98,8 @@ router.post(`/:id/bottles`, async (req, res, next) => {
   }
 });
 
+// ==========================================================
+// ==========================================================
 router.route(`/:id`)
   // get one crate
   .get(async (req, res, next) => {
@@ -135,6 +146,7 @@ router.route(`/:id`)
       handleError(error);
     }
   })
+// ==========================================================
   // abandon a crate
   .delete(async (req, res, next) => {
     try {
@@ -182,6 +194,8 @@ router.route(`/:id`)
     }
   });
 
+// ==========================================================
+// ==========================================================
 // reserve spot on crate
 router.patch(`/:id/reserve`, async (req, res, next) => {
   try {
@@ -205,6 +219,8 @@ router.patch(`/:id/reserve`, async (req, res, next) => {
   }
 });
 
+// ==========================================================
+// ==========================================================
 // reveal username for one crate
 router.patch(`/:id/reveal-username`, async (req, res, next) => {
   try {
@@ -251,6 +267,7 @@ router.patch(`/:id/reveal-username`, async (req, res, next) => {
 
 function getCrateParticipant(crate, user, participant) {
   let result = {};
+
   if (!crate[participant].user) {
     result = null;
   } else if (
@@ -263,6 +280,7 @@ function getCrateParticipant(crate, user, participant) {
     result.user = crate[participant].user.username;
     result.isAnonymous = crate[participant].isAnonymous;
   }
+  
   return result;
 }
 
@@ -273,18 +291,18 @@ async function structureCrate(crate, user) {
     { sort: { createdAt: -1 }, limit: 1 }
   );
 
-  const crateCreator = getCrateParticipant(crate, user, "creator");
-  const crateResponder = getCrateParticipant(crate, user, "responder");
+  const crateCreator = getCrateParticipant(crate, user, `creator`);
+  const crateResponder = getCrateParticipant(crate, user, `responder`);
 
   latestBottle._doc.author =
     latestBottle.author.equals(crate.creator.user.id)
       ? crateCreator
       : crateResponder;
-
   
   crate._doc.creator = crateCreator;
   crate._doc.responder = crateResponder;
   crate._doc.latestBottle = latestBottle;
 }
+
 
 module.exports = router;
