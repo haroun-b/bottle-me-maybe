@@ -1,11 +1,10 @@
 const {
   handleError,
   structureCrate,
-  isValidId,
-  handleInvalidId,
   handleNotExist,
   getCrateParticipant
 } = require(`../utils/helpers.function`),
+  validateId = require(`../middleware/id-validation.middleware`),
   router = require(`express`).Router(),
   Crate = require(`../models/crate.model`),
   Bottle = require(`../models/bottle.model`);
@@ -13,22 +12,6 @@ const {
 
 // ==========================================================
 // ==========================================================
-router.all(`/:id`, (req, res, next) => {
-  try {
-    const crateId = req.params.id;
-
-    if (!isValidId(crateId)) {
-      handleInvalidId(crateId, res);
-      return;
-    }
-
-    req.crateId = crateId;
-    next();
-  } catch (err) {
-    handleError(err);
-  }
-});
-
 router.use(require(`../middleware/auth.middleware`));
 router.use(require(`../middleware/access-restricting.middleware`));
 
@@ -57,10 +40,11 @@ router.get(`/`, async (req, res, next) => {
 
 // ==========================================================
 // ==========================================================
-router.post(`/:id/bottles`, async (req, res, next) => {
+router.post(`/:id/bottles`, validateId, async (req, res, next) => {
   try {
     const { message, revealUsername } = req.body,
-      { user, crateId } = req;
+      { user } = req,
+      crateId = req.params.id;
 
     const foundCrate = await Crate.findById(crateId);
     if (!foundCrate) {
@@ -103,17 +87,12 @@ router.post(`/:id/bottles`, async (req, res, next) => {
 
 // ==========================================================
 // ==========================================================
-router.route(`/:id`)
+router.route(`/:id`, validateId)
   // get one crate
   .get(async (req, res, next) => {
     try {
       const { user } = req,
         crateId = req.params.id;
-
-      if (!isValidId(crateId)) {
-        handleInvalidId(crateId, res);
-        return;
-      }
 
       const foundCrate = await Crate.findOne({
         _id: crateId,
@@ -155,11 +134,6 @@ router.route(`/:id`)
     try {
       const { user } = req,
         crateId = req.params.id;
-
-      if (!isValidId(crateId)) {
-        handleInvalidId(crateId, res);
-        return;
-      }
 
       const foundCrate = await Crate.findOne(
         {
@@ -206,9 +180,10 @@ router.route(`/:id`)
 // ==========================================================
 // ==========================================================
 // reserve spot on crate
-router.patch(`/:id/reserve`, async (req, res, next) => {
+router.patch(`/:id/reserve`, validateId, async (req, res, next) => {
   try {
-    const { user, crateId } = req;
+    const { user } = req,
+      crateId = req.params.id;
 
     const [foundCrate] = await Crate.findOne({
       _id: crateId,
@@ -231,9 +206,10 @@ router.patch(`/:id/reserve`, async (req, res, next) => {
 // ==========================================================
 // ==========================================================
 // reveal username for one crate
-router.patch(`/:id/reveal-username`, async (req, res, next) => {
+router.patch(`/:id/reveal-username`, validateId, async (req, res, next) => {
   try {
-    const { user, crateId } = req;
+    const { user } = req,
+      crateId = req.params.id;
 
     const foundCrate = await Crate.findOne({
       _id: crateId,

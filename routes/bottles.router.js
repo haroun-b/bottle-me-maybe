@@ -1,4 +1,8 @@
-const { handleError, handleNotExist } = require("../utils/helpers.function"),
+const {
+  handleError,
+  handleNotExist,
+} = require(`../utils/helpers.function`),
+  validateId = require(`../middleware/id-validation.middleware`),
   router = require(`express`).Router(),
   Bottle = require(`../models/bottle.model`),
   Crate = require(`../models/crate.model`),
@@ -8,22 +12,6 @@ const { handleError, handleNotExist } = require("../utils/helpers.function"),
 
 // ==========================================================
 // ==========================================================
-router.all(`/:id`, (req, res, next) => {
-  try {
-    const bottleId = req.params.id;
-
-    if (!isValidId(bottleId)) {
-      handleInvalidId(bottleId, res);
-      return;
-    }
-
-    req.bottleId = bottleId;
-    next();
-  } catch (err) {
-    handleError(err);
-  }
-});
-
 router.use(require(`../middleware/auth.middleware`));
 
 // ==========================================================
@@ -47,7 +35,7 @@ router.get(`/random`, async (req, res, next) => {
 
     const randomIndex = Math.floor(Math.random() * floatingCrates.length),
       randomCrate = floatingCrates[randomIndex],
-      randomBottle = await Bottle.findOne({ crate: randomCrate.id });
+      randomBottle = await Bottle.findOne({ crate: randomCrate.id }, { __v: 0 });
     let bottleAuthor = `Anonymous`;
 
     if (!randomCrate.creator.isAnonymous) {
@@ -94,9 +82,10 @@ router.get(`/random`, async (req, res, next) => {
 
 // ==========================================================
 // ==========================================================
-router.get(`/:id/views`, async (req, res, next) => {
+router.get(`/:id/views`, validateId, async (req, res, next) => {
   try {
-    const { user, bottleId } = req;
+    const { user } = req,
+      bottleId = req.params.id;
 
     const foundBottle = await Bottle.findById(bottleId);
     if (!foundBottle) {
@@ -114,7 +103,6 @@ router.get(`/:id/views`, async (req, res, next) => {
     handleError(err, res, next);
   }
 });
-
 
 // ==========================================================
 // ==========================================================
@@ -140,6 +128,7 @@ router.post(`/`, async (req, res, next) => {
       message,
     });
 
+    delete createdBottle._doc.__v;
     res.status(201).json(createdBottle);
   } catch (err) {
     handleError(err, res, next);
@@ -148,9 +137,10 @@ router.post(`/`, async (req, res, next) => {
 
 // ==========================================================
 // ==========================================================
-router.patch(`/:id`, async (req, res, next) => {
+router.patch(`/:id`, validateId, async (req, res, next) => {
   try {
-    const { user, bottleId } = req;
+    const { user } = req,
+      bottleId = req.params.id;
 
     const foundBottle = await Bottle.findOne({ _id: bottleId, author: user.id })
       .populate(`crate`);
