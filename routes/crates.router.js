@@ -1,7 +1,14 @@
-const { handleError, structureCrate, isValidId, handleInvalidId, handleNotExist, getCrateParticipant } = require(`../utils/helpers.function`);
-const router = require(`express`).Router();
-const Crate = require(`../models/crate.model`);
-const Bottle = require(`../models/bottle.model`);
+const {
+  handleError,
+  structureCrate,
+  isValidId,
+  handleInvalidId,
+  handleNotExist,
+  getCrateParticipant
+} = require(`../utils/helpers.function`),
+  router = require(`express`).Router(),
+  Crate = require(`../models/crate.model`),
+  Bottle = require(`../models/bottle.model`);
 
 
 // ==========================================================
