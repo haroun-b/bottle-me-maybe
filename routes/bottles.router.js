@@ -121,7 +121,7 @@ router.post(`/`, async (req, res, next) => {
     if (Date.now() - userQuota.for > 86400000) {
       userQuota = await User.findByIdAndUpdate(
         user.id,
-        { dailyQuota: { for: Date.now() } },
+        { dailyQuota: { for: Date.now(), newBottles: 20 } },
         { new: true, select: { dailyQuota: 1 } }
       );
     }
