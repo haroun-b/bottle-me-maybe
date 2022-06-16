@@ -12,7 +12,7 @@ function isValidId(id) {
   return mongoose.isValidObjectId(id);
 }
 
-function handleInvalidId(id, res, next) {
+function handleInvalidId(id, res) {
   res.status(400)
     .json({
       errors: {
@@ -21,7 +21,7 @@ function handleInvalidId(id, res, next) {
     });
 }
 
-function handleNotExist(key, value, res, next) {
+function handleNotExist(key, value, res) {
   res.status(404)
     .json({
       errors: {
@@ -34,7 +34,7 @@ function isValidPasswd(password) {
   return typeof password === `string` && password.length > 7;
 }
 
-function handleInvalidPasswd(password) {
+function handleInvalidPasswd(res) {
   res.status(400)
     .json({
       errors: {
@@ -43,7 +43,7 @@ function handleInvalidPasswd(password) {
     });
 }
 
-function handleTokenError(err) {
+function handleTokenError(err, res, next) {
   try {
     let authentication = ``;
 
@@ -59,7 +59,7 @@ function handleTokenError(err) {
   }
 }
 
-function handleSchemaError(err) {
+function handleSchemaError(err, res, next) {
   try {
     const errors = {};
 

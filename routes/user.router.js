@@ -1,25 +1,24 @@
-const { reserveCrate } = require(`../utils/helpers.function`),
+const {
+  reserveCrate,
+  isValidPasswd,
+  handleInvalidPasswd,
+  handleNotExist,
+  handleSchemaError
+} = require(`../utils/helpers.function`),
   router = require(`express`).Router(),
   User = require(`../models/user.model`),
   bcrypt = require(`bcryptjs`),
   jwt = require(`jsonwebtoken`),
   nodemailer = require(`nodemailer`);
 
-
+// ==========================================================
+// ==========================================================
 router.post(`/signup`, async (req, res, next) => {
   try {
-    const { username, password, email, crateId } = req.body,
-      inputIsStr = ValidateStrInput({ username, password, crateId });
+    const { username, password, email, crateId } = req.body;
 
-      // check password length and type
-    if (!inputIsStr) {
-      return;
-    }
-
-    const foundUser = await User.findOne({ username });
-    if (foundUser) {
-      res.status(401)
-        .json({ message: `Username already exists. Try logging in instead` });
+    if (!isValidPasswd(password)) {
+      handleInvalidPasswd(res, next);
       return;
     }
 
@@ -30,7 +29,7 @@ router.post(`/signup`, async (req, res, next) => {
       username,
       password: hashedPassword
     };
-    if (email && typeof email === `string`) {
+    if (email) {
       user.email = email;
     }
 
@@ -47,47 +46,55 @@ router.post(`/signup`, async (req, res, next) => {
 
     res.status(201).json({ username, authToken });
   } catch (err) {
-    next(err);
+    handleSchemaError(err, res, next)
   }
 });
 
+// ==========================================================
+// ==========================================================
 router.post(`/login`, async (req, res, next) => {
-  const { username, password, crateId } = req.body,
-    inputIsStr = ValidateStrInput({ username, password, crateId });
+  try {
+    const { username, password, crateId } = req.body;
 
-  if (!inputIsStr) {
-    return;
-  }
+    if (!isValidPasswd(password)) {
+      handleInvalidPasswd(res, next);
+      return;
+    }
 
-  const foundUser = await User.findOne({ username });
-  if (!foundUser) {
-    res.status(404).json({
-      message: `Username: ${username} does not exist. Try signing up instead.`
+    const foundUser = await User.findOne({ username });
+    if (!foundUser) {
+      handleNotExist(`username`, username, res);
+      return;
+    }
+
+    const isPasswordMatched = await bcrypt.compare(password, foundUser.password);
+    if (!isPasswordMatched) {
+      res.status(401)
+        .json({
+          errors: {
+            password: `Wrong password`
+          }
+        });
+      return;
+    }
+
+    if (crateId) {
+      await reserveCrate(crateId, foundUser.id);
+    }
+
+    const authToken = jwt.sign({ username }, process.env.TOKEN_SECRET, {
+      algorithm: `HS256`,
+      expiresIn: `12h`,
     });
-    return;
+
+    res.status(200).json({ username, authToken });
+  } catch (err) {
+    handleSchemaError(err, res, next)
   }
-
-  const isPasswordMatched = await bcrypt.compare(password, foundUser.password);
-  if (!isPasswordMatched) {
-    res.status(401)
-      .json({
-        message: `Wrong password.`
-      });
-    return;
-  }
-
-  if (crateId) {
-    await reserveCrate(crateId, createdUser.id);
-  }
-
-  const authToken = jwt.sign({ username }, process.env.TOKEN_SECRET, {
-    algorithm: `HS256`,
-    expiresIn: `12h`,
-  });
-
-  res.status(200).json({ username, authToken });
 });
 
+// ==========================================================
+// ==========================================================
 router.patch(`/reset-password`, async (req, res, next) => {
   try {
     const { username, password } = req.body;
@@ -117,24 +124,27 @@ router.patch(`/reset-password`, async (req, res, next) => {
     }
 
     if (!username) {
-      res.status(400).json({
-        message: `To reset your password, please provide a username.`
-      });
+      res.status(400)
+        .json({
+          errors: {
+            username: `To reset your password, please provide a username`
+          }
+        });
       return;
     }
 
     const foundUser = await User.findOne({ username });
-
     if (!foundUser) {
-      res.status(404).json({
-        message: `Username: ${username} does not exist.`
-      });
+      handleNotExist(`username`, username, res);
       return;
     }
     if (!foundUser.email) {
-      res.status(403).json({
-        message: `Password reset not possible. ${username} did not provide an email during signup.`
-      });
+      res.status(403)
+        .json({
+          errors: {
+            email: `Password reset not possible. ${username} did not provide an email during signup`
+          }
+        });
       return;
     }
 
@@ -154,7 +164,7 @@ router.patch(`/reset-password`, async (req, res, next) => {
 
     // use .env for the from field
     const emailResMsg = await transporter.sendMail({
-      from: '`Bottle Me Maybe ` <bottle.me.maybe@gmail.com>',
+      from: `'Bottle Me Maybe ' <${process.env.EMAIL_USERNAME}>`,
       to: foundUser.email,
       subject: 'Password Reset Link',
       text: `${process.env.BASE_URL}/user/reset-password/?token=${token}`
@@ -163,12 +173,14 @@ router.patch(`/reset-password`, async (req, res, next) => {
     console.log(emailResMsg);
 
     res.status(200).json({ message: `A password reset link was sent to your email!` });
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    handleSchemaError(err)
   }
 });
 
 
+// ==========================================================
+// ==========================================================
 router.use(require(`../middleware/auth.middleware`));
 router.use(require(`../middleware/access-restricting.middleware`));
 router.delete(`/`, async (req, res, next) => {
