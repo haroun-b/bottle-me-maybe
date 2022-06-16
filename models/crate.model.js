@@ -1,37 +1,36 @@
 const { Schema, model } = require(`mongoose`);
 
-
 const crateSchema = new Schema(
   {
     isArchived: {
       type: Boolean,
-      default: false
+      default: false,
     },
     creator: {
       user: {
         type: Schema.Types.ObjectId,
         ref: `User`,
-        required: true
+        required: true,
       },
       isAnonymous: {
         type: Boolean,
-        default: true
+        default: true,
       },
     },
     responder: {
       user: {
         type: Schema.Types.ObjectId,
         ref: `User`,
-        default: null
+        default: null,
       },
       isAnonymous: {
         type: Boolean,
-        default: true
-      },
-    }
+        default: true,
+      }
+    },
   },
   {
-    timestamps: true
+    timestamps: true,
   }
 );
 

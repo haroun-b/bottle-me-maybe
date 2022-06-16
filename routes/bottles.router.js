@@ -27,8 +27,8 @@ router.get(`/random`, async (req, res, next) => {
 
     const randomIndex = Math.floor(Math.random() * floatingCrates.length),
       randomCrate = floatingCrates[randomIndex],
-      randomBottle = await Bottle.findOne({ crate: randomCrate._id }),
-      bottleAuthor = `Anonymous`;
+      randomBottle = await Bottle.findOne({ crate: randomCrate._id });
+    let bottleAuthor = `Anonymous`;
 
     if (!randomCrate.creator.isAnonymous) {
       bottleAuthor = await User.findById(randomBottle.author, { username: 1 });
@@ -38,7 +38,10 @@ router.get(`/random`, async (req, res, next) => {
 
     randomBottle._doc.author = bottleAuthor;
     randomBottle._doc.views = bottleViews;
-    res.status(200).json(randomBottle);
+    res.status(200).json({
+      ...randomBottle._doc,
+      replyPath: `/crates/${randomBottle.crate}/bottles`,
+    });
 
     const { ip } = req;
     let location = null;
@@ -129,11 +132,10 @@ router.post(`/`, async (req, res, next) => {
         foundCrate.creator.user.toString() === user.id &&
         !foundCrate.responder.user
       ) {
-        res
-          .status(403)
-          .json({
-            message: `Cannot reply until this bottle is picked by another user`,
-          });
+
+        res.status(403).json({
+          message: `Cannot reply until this bottle is picked by another user`,
+        });
         return;
       }
 
@@ -143,6 +145,8 @@ router.post(`/`, async (req, res, next) => {
       res.status(400).json({ message: `${crateId} is not a valid crate id.` });
       return;
     }
+
+    await Crate.findByIdAndUpdate(crate.id, { "responder.user": user.id });
 
     const createdBottle = await Bottle.create({
       author: user.id,
@@ -181,11 +185,10 @@ router.patch(`/:id`, async (req, res, next) => {
 
     if (crate.responder.user || crate.isArchived) {
       //  not possible to update a bottle that is part of a conversation
-      res
-        .status(403)
-        .json({
-          message: `Cannot update the bottle with id: ${req.params.id}, because it is part of a conversation.`,
-        });
+
+      res.status(403).json({
+        message: `Cannot update the bottle with id: ${req.params.id}, because it is part of a conversation.`,
+      });
       return;
     }
 
