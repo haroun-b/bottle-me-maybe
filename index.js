@@ -17,6 +17,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 // adds routing
+app.use(`/`, require(`./routes/index.router`));
+
 app.use(`/crates`, require(`./routes/crates.router`));
 app.use(`/bottles`, require(`./routes/bottles.router`));
 app.use(`/user`, require(`./routes/user.router`));
