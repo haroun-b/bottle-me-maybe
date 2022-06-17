@@ -52,7 +52,7 @@ router.get(`/random`, async (req, res, next) => {
 
     const ip = req.ip.replace(`::ffff:`, ``);
     let location = null;
-console.log({ip}, geoip.lookup(ip));
+console.log({ip}, req.ips);
 
 
     if (geoip.lookup(ip)) {
