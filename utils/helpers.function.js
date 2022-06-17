@@ -9,6 +9,35 @@ function reserveCrate(crateId, userId) {
   }
 }
 
+async function abandonCrate(crate, user) {
+  if (!crate.isArchived && crate.responder) {
+    const promises = [];
+
+    if (crate.creator.user.toString() === user.id) {
+      promises.push(Crate.findByIdAndUpdate(crate.id, {
+        "creator.user": null,
+        isArchived: true,
+      }));
+    } else {
+      promises.push(Crate.findByIdAndUpdate(crate.id, {
+        "responder.user": null,
+        isArchived: true,
+      }));
+    }
+
+    promises.push(Bottle.updateMany(
+      { author: user.id, crate: crate.id },
+      { author: null }));
+
+    return promises;
+  }
+  
+  return [
+    Crate.findByIdAndDelete(crate.id),
+    Bottle.deleteMany({ crate: crate.id })
+  ];
+}
+
 async function structureCrate(crate, user) {
   const [newestBottle] = await Bottle.find(
     { crate: crate.id },
@@ -88,6 +117,7 @@ function handleNotExist(key, value, res) {
 
 module.exports = {
   reserveCrate,
+  abandonCrate,
   structureCrate,
   getCrateParticipant,
   isValidId,

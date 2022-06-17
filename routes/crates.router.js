@@ -1,7 +1,8 @@
 const {
   structureCrate,
   handleNotExist,
-  getCrateParticipant
+  getCrateParticipant,
+  abandonCrate
 } = require(`../utils/helpers.function`),
   validateId = require(`../middleware/id-validation.middleware`),
   router = require(`express`).Router(),
@@ -162,26 +163,7 @@ router.route(`/:id`)
         return;
       }
 
-      if (!foundCrate.isArchived && foundCrate.responder) {
-        if (foundCrate.creator.user.toString() === user.id) {
-          await Crate.findByIdAndUpdate(foundCrate.id, {
-            "creator.user": null,
-            isArchived: true,
-          });
-        } else {
-          await Crate.findByIdAndUpdate(foundCrate.id, {
-            "responder.user": null,
-            isArchived: true,
-          });
-        }
-
-        await Bottle.updateMany(
-          { author: user.id, crate: crateId },
-          { author: null });
-      } else {
-        await Crate.findByIdAndDelete(crateId);
-        await Bottle.deleteMany({ crate: crateId });
-      }
+      await Promise.all(abandonCrate(foundCrate, user));
 
       res.sendStatus(204);
     } catch (err) {
