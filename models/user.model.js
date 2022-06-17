@@ -7,7 +7,7 @@ const userSchema = new Schema(
       type: String,
       unique: true,
       required: true,
-      maxLength: 20,
+      maxLength: [20, `must not exceed 20 characters in length`],
       lowercase: true,
       trim: true
     },
@@ -31,7 +31,7 @@ const userSchema = new Schema(
 
           return str.match(emailRegex) !== null;
         },
-        message: email => `${email.value} is not a valid email!`
+        message: email => `${email.value} is not a valid email`
       }
     },
     dailyQuota: {

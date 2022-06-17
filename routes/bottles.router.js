@@ -1,13 +1,18 @@
-const router = require(`express`).Router();
-const mongoose = require("mongoose");
-const Bottle = require(`../models/bottle.model`);
-const Crate = require(`../models/crate.model`);
-const User = require(`../models/user.model`);
-const View = require("../models/view.model");
-const geoip = require("geoip-lite");
+const { handleNotExist } = require(`../utils/helpers.function`),
+  validateId = require(`../middleware/id-validation.middleware`),
+  router = require(`express`).Router(),
+  Bottle = require(`../models/bottle.model`),
+  Crate = require(`../models/crate.model`),
+  User = require(`../models/user.model`),
+  View = require("../models/view.model"),
+  geoip = require("geoip-lite");
 
+// ==========================================================
+// ==========================================================
 router.use(require(`../middleware/auth.middleware`));
 
+// ==========================================================
+// ==========================================================
 router.get(`/random`, async (req, res, next) => {
   try {
     const query = { "responder.user": null, isArchived: false };
@@ -27,7 +32,7 @@ router.get(`/random`, async (req, res, next) => {
 
     const randomIndex = Math.floor(Math.random() * floatingCrates.length),
       randomCrate = floatingCrates[randomIndex],
-      randomBottle = await Bottle.findOne({ crate: randomCrate._id });
+      randomBottle = await Bottle.findOne({ crate: randomCrate.id }, { __v: 0 });
     let bottleAuthor = `Anonymous`;
 
     if (!randomCrate.creator.isAnonymous) {
@@ -38,10 +43,12 @@ router.get(`/random`, async (req, res, next) => {
 
     randomBottle._doc.author = bottleAuthor;
     randomBottle._doc.views = bottleViews;
-    res.status(200).json({
-      ...randomBottle._doc,
-      replyPath: `/crates/${randomBottle.crate}/bottles`,
-    });
+
+    res.status(200)
+      .json({
+        ...randomBottle._doc,
+        replyPath: `/crates/${randomBottle.crate}/bottles`,
+      });
 
     const { ip } = req;
     let location = null;
@@ -65,119 +72,103 @@ router.get(`/random`, async (req, res, next) => {
     }
 
     await View.create({ bottle: randomBottle.id, location });
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    next(err);
   }
 });
 
-router.get(`/:id/views`, async (req, res, next) => {
+// ==========================================================
+// ==========================================================
+router.get(`/:id/views`, validateId, async (req, res, next) => {
   try {
-    const { user } = req;
-    const foundBottle = await Bottle.findById(req.params.id);
+    const { user } = req,
+      bottleId = req.params.id;
 
+    const foundBottle = await Bottle.findById(bottleId);
     if (!foundBottle) {
-      res
-        .status(404)
-        .json({ message: `No such bottle with id: ${req.params.id}.` });
+      handleNotExist(`bottle`, bottleId, res);
+      return;
     }
 
     const bottleViews = await View.find(
-      { bottle: foundBottle.id },
+      { bottle: bottleId },
       { _id: 1, createdAt: 1, location: 1 }
     );
 
     res.status(200).json(bottleViews);
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    next(err);
   }
 });
 
+// ==========================================================
+// ==========================================================
 router.use(require(`../middleware/access-restricting.middleware`));
 
+// ==========================================================
+// ==========================================================
 router.post(`/`, async (req, res, next) => {
-  // condition: author cannot reply to own first bottle
-
-  /*
-  request:
-  req.user: {
-    id,
-    username
-  }
-  body: {
-    message: string,
-    crateId[optional]: string,   // undefined for first bottles
-    revealUsername[optional]: boolean, // undefined for all except first bottles
-  }
-  */
   try {
-    const { user } = req;
-    const { message, crateId, revealUsername } = req.body;
-    let crate;
+    const { user } = req,
+      { message, revealUsername } = req.body;
 
-    if (!crateId) {
-      const creator = { user: user.id };
-      if (revealUsername) {
-        creator.isAnonymous = revealUsername;
-      }
-      crate = await Crate.create({ creator });
-    } else if (mongoose.isValidObjectId(crateId)) {
-      // check that crate exists
-      const foundCrate = await Crate.findById(crateId);
 
-      if (!foundCrate) {
-        res.status(404).json({ message: `no such crate with id: ${crateId}.` });
-        return;
-      }
-      if (
-        foundCrate.creator.user.toString() === user.id &&
-        !foundCrate.responder.user
-      ) {
+    let { dailyQuota } = await User.findById(user.id, { dailyQuota: 1 });
 
-        res.status(403).json({
-          message: `Cannot reply until this bottle is picked by another user`,
+    if (Date.now() - dailyQuota.for > 86400000) {
+      dailyQuota = await User.findByIdAndUpdate(
+        user.id,
+        { dailyQuota: { for: Date.now(), newBottles: 20 } },
+        { new: true, select: { dailyQuota: 1 } }
+      );
+    }
+    const remainingQuota = dailyQuota.newBottles;
+    if (remainingQuota < 1) {
+      res.status(403)
+        .json({
+          errors: {
+            quota: `You've exceeded your daily quota for new bottles. You can always reply to other people's bottles`
+          }
         });
-        return;
-      }
-
-      crate = foundCrate;
-    } else {
-      // error invalid crateId
-      res.status(400).json({ message: `${crateId} is not a valid crate id.` });
       return;
     }
 
-    await Crate.findByIdAndUpdate(crate.id, { "responder.user": user.id });
+    const creator = {
+      user: user.id,
+      isAnonymous: !revealUsername
+    };
+
+    const createdCrate = await Crate.create({ creator });
 
     const createdBottle = await Bottle.create({
       author: user.id,
-      crate: crate._id,
-      message: message,
+      crate: createdCrate.id,
+      message,
     });
 
+    delete createdBottle._doc.__v;
     res.status(201).json(createdBottle);
-  } catch (error) {
-    next(error);
+
+    await User.findByIdAndUpdate(
+      user.id,
+      { dailyQuota: { newBottles: remainingQuota - 1 } }
+    );
+  } catch (err) {
+    next(err);
   }
 });
-router.patch(`/:id`, async (req, res, next) => {
-  /*
-  request:
-  req.user: {
-    id,
-    username
-  }
-  body: {
-    message: string,
-  }
-  */
-  try {
-    const foundBottle = await Bottle.findById(req.params.id).populate(`crate`);
 
+// ==========================================================
+// ==========================================================
+router.patch(`/:id`, validateId, async (req, res, next) => {
+  try {
+    const { user } = req,
+      bottleId = req.params.id;
+
+    const foundBottle = await Bottle.findOne({ _id: bottleId, author: user.id })
+      .populate(`crate`);
     if (!foundBottle) {
-      // 404
-      res
-        .status(404)
-        .json({ message: `No such bottle with id: ${req.params.id}.` });
+      handleNotExist(`bottle`, bottleId, res);
       return;
     }
 
@@ -185,24 +176,23 @@ router.patch(`/:id`, async (req, res, next) => {
 
     if (crate.responder.user || crate.isArchived) {
       //  not possible to update a bottle that is part of a conversation
-
-      res.status(403).json({
-        message: `Cannot update the bottle with id: ${req.params.id}, because it is part of a conversation.`,
-      });
+      res.status(403)
+        .json({
+          errors: {
+            bottle: `${bottleId} cannot be updated, because it is part of a conversation`
+          }
+        });
       return;
     }
 
     const { message } = req.body;
-    const updatedMessage = await Bottle.findByIdAndUpdate(
-      req.params.id,
-      { message },
-      { new: true }
-    );
+    const updatedMessage = await Bottle.findByIdAndUpdate(bottleId, { message }, { new: true, runValidators: true, select: { __v: 0 } });
 
     res.status(200).json(updatedMessage);
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    next(err);
   }
 });
+
 
 module.exports = router;

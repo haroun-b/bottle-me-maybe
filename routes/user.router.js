@@ -1,36 +1,23 @@
-const { handleError, reserveCrate } = require(`../utils/helpers.function`),
+const {
+  reserveCrate,
+  isValidPasswd,
+  handleInvalidPasswd,
+  handleNotExist,
+} = require(`../utils/helpers.function`),
   router = require(`express`).Router(),
   User = require(`../models/user.model`),
   bcrypt = require(`bcryptjs`),
   jwt = require(`jsonwebtoken`),
   nodemailer = require(`nodemailer`);
 
-
+// ==========================================================
+// ==========================================================
 router.post(`/signup`, async (req, res, next) => {
   try {
-    const { password, email, crateId } = req.body,
-      username = req.body.username.trim();
+    const { username, password, email, crateId } = req.body;
 
-    const foundUser = await User.findOne({ username });
-    if (foundUser) {
-      res.status(401)
-        .json({
-          errors: [{
-            path: `username`,
-            message: `Username already exists. Try logging in instead.`
-          }]
-        });
-      return;
-    }
-
-    if (typeof password !== `string`) {
-      res.status(400)
-        .json({
-          errors: [{
-            path: `password`,
-            message: `Password must be of type: String.`
-          }]
-        });
+    if (!isValidPasswd(password)) {
+      handleInvalidPasswd(res, next);
       return;
     }
 
@@ -57,114 +44,108 @@ router.post(`/signup`, async (req, res, next) => {
     });
 
     res.status(201).json({ username, authToken });
-  } catch (error) {
-    handleError(error);
+  } catch (err) {
+    next(err);
   }
 });
 
+// ==========================================================
+// ==========================================================
 router.post(`/login`, async (req, res, next) => {
-  const { username, password, crateId } = req.body;
+  try {
+    const { username, password, crateId } = req.body;
 
-  const foundUser = await User.findOne({ username });
-  if (!foundUser) {
-    res.status(404).json({
-      errors: [{
-        path: `username`,
-        message: `Username: ${username} does not exist. Try signing up instead.`
-      }]
+    if (!isValidPasswd(password)) {
+      handleInvalidPasswd(res, next);
+      return;
+    }
+
+    const foundUser = await User.findOne({ username });
+    if (!foundUser) {
+      handleNotExist(`username`, username, res);
+      return;
+    }
+
+    const isPasswordMatched = await bcrypt.compare(password, foundUser.password);
+    if (!isPasswordMatched) {
+      res.status(401)
+        .json({
+          errors: {
+            password: `Wrong password`
+          }
+        });
+      return;
+    }
+
+    if (crateId) {
+      await reserveCrate(crateId, foundUser.id);
+    }
+
+    const authToken = jwt.sign({ username }, process.env.TOKEN_SECRET, {
+      algorithm: `HS256`,
+      expiresIn: `12h`,
     });
-    return;
+
+    res.status(200).json({ username, authToken });
+  } catch (err) {
+    next(err);
   }
-
-  const isPasswordMatched = await bcrypt.compare(password, foundUser.password);
-  if (!isPasswordMatched) {
-    res.status(401)
-      .json({
-        errors: [{
-          path: `password`,
-          message: `Wrong password.`
-        }]
-      });
-    return;
-  }
-
-  if (crateId) {
-    await reserveCrate(crateId, createdUser.id);
-  }
-
-  const authToken = jwt.sign({ username }, process.env.TOKEN_SECRET, {
-    algorithm: `HS256`,
-    expiresIn: `12h`,
-  });
-
-  res.status(200).json({ username, authToken });
 });
 
+// ==========================================================
+// ==========================================================
 router.patch(`/reset-password`, async (req, res, next) => {
   try {
     const { username, password } = req.body;
     let resetToken = req.query.token;
 
     if (resetToken) {
-      const payload = jwt.verify(resetToken, process.env.TOKEN_SECRET);
+      const { username } = jwt.verify(resetToken, process.env.TOKEN_SECRET);
       if (!password) {
         res.status(400)
           .json({
-            errors: [{
-              path: `password`,
-              message: `To reset your password, please provide a new one.`
-            }]
+            errors: {
+              password: `To reset your password, please provide a new one`
+            }
           });
         return;
       }
 
-      if (typeof password !== `string`) {
-        res.status(400)
-          .json({
-            errors: [{
-              path: `password`,
-              message: `Password must be of type: String.`
-            }]
-          });
+      if (!isValidPasswd(password)) {
+        handleInvalidPasswd(res);
         return;
       }
 
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(password, salt);
+      const salt = await bcrypt.genSalt(10),
+        hashedPassword = await bcrypt.hash(password, salt);
 
-      await User.findOneAndUpdate({ username: payload.username }, { password: hashedPassword });
+      await User.findOneAndUpdate({ username }, { password: hashedPassword });
 
       res.status(200).json({ message: `You've successfully updated your password! Please login to continue.` });
     }
 
     if (!username) {
-      res.status(400).json({
-        errors: [{
-          path: `username`,
-          message: `To reset your password, please provide a username.`
-        }]
-      });
+      res.status(400)
+        .json({
+          errors: {
+            username: `To reset your password, please provide a username`
+          }
+        });
       return;
     }
 
     const foundUser = await User.findOne({ username });
-
     if (!foundUser) {
-      res.status(404).json({
-        errors: [{
-          path: `username`,
-          message: `Username: ${username} does not exist.`
-        }]
-      });
+      handleNotExist(`username`, username, res);
       return;
     }
     if (!foundUser.email) {
-      res.status(403).json({
-        errors: [{
-          path: `email`,
-          message: `Password reset not possible. ${username} did not provide an email during signup.`
-        }]
-      });
+      res.status(403)
+        .json({
+          errors: {
+            email: `Password reset not possible. ${username} did not provide an email during signup`
+          }
+        });
       return;
     }
 
@@ -182,22 +163,25 @@ router.patch(`/reset-password`, async (req, res, next) => {
       }
     });
 
+    // use .env for the from field
     const emailResMsg = await transporter.sendMail({
-      from: '`Bottle Me Maybe ` <bottle.me.maybe@gmail.com>',
+      from: `'Bottle Me Maybe ' <${process.env.EMAIL_USERNAME}>`,
       to: foundUser.email,
       subject: 'Password Reset Link',
-      text: `${process.env.BASE_URL}/user/reset-password/?token=${token}`
+      text: `${process.env.BASE_URL}/user/reset-password/?token=${resetToken}`
     });
 
     console.log(emailResMsg);
 
     res.status(200).json({ message: `A password reset link was sent to your email!` });
-  } catch (error) {
-    handleError(error);
+  } catch (err) {
+    next(err);
   }
 });
 
 
+// ==========================================================
+// ==========================================================
 router.use(require(`../middleware/auth.middleware`));
 router.use(require(`../middleware/access-restricting.middleware`));
 router.delete(`/`, async (req, res, next) => {
@@ -205,7 +189,7 @@ router.delete(`/`, async (req, res, next) => {
     await User.findByIdAndDelete(req.user.id);
     res.sendStatus(204);
   } catch (error) {
-    handleError(error);
+    next(error);
   }
 });
 
