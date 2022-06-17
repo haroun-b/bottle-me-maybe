@@ -51,10 +51,9 @@ router.get(`/random`, async (req, res, next) => {
         replyPath: `${process.env.BASE_URL}/crates/${randomBottle.crate}/bottles`
       });
 
-    // const ip = req.ip.replace(/(::ffff:)|[\[\]]/g, ``);
     const ip = requestIp.getClientIp(req);
     let location = null;
-      console.log({ip});
+
     if (geoip.lookup(ip)) {
       const {
         country,
@@ -95,8 +94,7 @@ router.get(`/:id/views`, validateId, async (req, res, next) => {
 
     const bottleViews = await View.find(
       { bottle: bottleId },
-      { _id: 1, createdAt: 1, location: 1 },
-      { createdAt: -1 }
+      { _id: 1, createdAt: 1, location: 1, sort: { createdAt: -1 } }
     );
 
     res.status(200).json(bottleViews);
