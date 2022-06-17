@@ -48,9 +48,10 @@ router.get(`/random`, async (req, res, next) => {
       .json({
         ...randomBottle._doc,
         replyPath: `${process.env.BASE_URL}/crates/${randomBottle.crate}/bottles`,
+        ip: req.ip
       });
 
-      console.log(req.ip);
+      console.log(`>>>ip: `, req.ip);
     const { ip } = req;
     let location = null;
     if (geoip.lookup(ip)) {
