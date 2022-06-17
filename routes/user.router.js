@@ -1,3 +1,5 @@
+const Crate = require(`../models/crate.model`);
+
 const {
   reserveCrate,
   isValidPasswd,
