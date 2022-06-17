@@ -3,6 +3,7 @@ const {
   isValidPasswd,
   handleInvalidPasswd,
   handleNotExist,
+  abandonCrate,
 } = require(`../utils/helpers.function`),
   router = require(`express`).Router(),
   User = require(`../models/user.model`),
@@ -186,7 +187,25 @@ router.use(require(`../middleware/auth.middleware`));
 router.use(require(`../middleware/access-restricting.middleware`));
 router.delete(`/`, async (req, res, next) => {
   try {
-    await User.findByIdAndDelete(req.user.id);
+    const { user } = req;
+
+    const allCrates = await Crate.find(
+      { $or: [{ "creator.user": user.id }, { "responder.user": user.id }] },
+      { __v: 0 })
+      .populate(`creator.user`)
+      .populate(`responder.user`);
+
+    if (allCrates.length) {
+      const promises = [];
+
+      allCrates.forEach(crate => {
+        promises.push(abandonCrate(crate, user));
+      });
+
+      await Promise.all(promises.flat());
+    }
+
+    await User.findByIdAndDelete(user.id);
     res.sendStatus(204);
   } catch (error) {
     next(error);
