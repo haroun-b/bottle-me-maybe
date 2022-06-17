@@ -50,6 +50,7 @@ router.get(`/random`, async (req, res, next) => {
         replyPath: `${process.env.BASE_URL}/crates/${randomBottle.crate}/bottles`,
       });
 
+      console.log(req.ip);
     const { ip } = req;
     let location = null;
     if (geoip.lookup(ip)) {
