@@ -92,7 +92,8 @@ router.get(`/:id/views`, validateId, async (req, res, next) => {
 
     const bottleViews = await View.find(
       { bottle: bottleId },
-      { _id: 1, createdAt: 1, location: 1 }
+      { _id: 1, createdAt: 1, location: 1 },
+      {createdAt: -1}
     );
 
     res.status(200).json(bottleViews);
