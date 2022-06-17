@@ -1,11 +1,25 @@
 # Bottle Me Maybe
 
-The Bottle me maybe is an app created by Haroun B. and Caetano S., the objective of this app is to give the users a new experience
-of chating and exchanging messages on internet, here you can read a message and reply to the original author of the message
-in an anonimous condition, or you can reveal your identity and have a chat to know each other better.
+A collaboration between Caetano S. and Haroun B. as Project no 2 of the Ironhack WebDev Bootcamp, Bottle Me Maybe is a simple express app which allows it's users to exchange messages "ie: Bottles" using HTTP.
 
-## Getting started
+Bottles are exchanged anonymously by default. But users may reveal their usernames at any point.
 
-To start you can open a "Bottle" or go directly to create your account, but if you want to pick a Bottle and reply, It's necessary to login first.
-After you choose a bottle you can reply it, or just choose another bottle. At any moment you can change your identity status to reveal yourself or
-you can just remain anonimous. Feel free to give your opinios but be respectfull.
+## About Implementation
+
+This implementation uses the following:
+
+- A document based database hosted on MongoDB Atlas.
+- JWT for authentication.
+- Hekoru for deployment
+
+## [Documentation](https://documenter.getpostman.com/view/21234692/UzBjso2G)
+
+## [API](https://bottle-me-maybe.herokuapp.com/)
+
+## What's next?
+
+- Add some basic security and email verification.
+- Implement real-time communication using websockets.
+- Add a front end.
+- Refactor some more.
+- Turn it into a PWA.
