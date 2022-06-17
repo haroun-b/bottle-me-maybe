@@ -47,7 +47,7 @@ router.get(`/random`, async (req, res, next) => {
     res.status(200)
       .json({
         ...randomBottle._doc,
-        replyPath: `/crates/${randomBottle.crate}/bottles`,
+        replyPath: `${process.env.BASE_URL}/crates/${randomBottle.crate}/bottles`,
       });
 
     const { ip } = req;
