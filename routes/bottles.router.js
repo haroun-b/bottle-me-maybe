@@ -132,6 +132,7 @@ router.post(`/`, async (req, res, next) => {
         foundCrate.creator.user.toString() === user.id &&
         !foundCrate.responder.user
       ) {
+
         res.status(403).json({
           message: `Cannot reply until this bottle is picked by another user`,
         });
@@ -184,6 +185,7 @@ router.patch(`/:id`, async (req, res, next) => {
 
     if (crate.responder.user || crate.isArchived) {
       //  not possible to update a bottle that is part of a conversation
+
       res.status(403).json({
         message: `Cannot update the bottle with id: ${req.params.id}, because it is part of a conversation.`,
       });
