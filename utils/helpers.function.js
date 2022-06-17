@@ -94,8 +94,5 @@ module.exports = {
   handleInvalidId,
   handleNotExist,
   isValidPasswd,
-  handleInvalidPasswd,
-  handleError,
-  handleTokenError,
-  handleSchemaError
+  handleInvalidPasswd
 }
