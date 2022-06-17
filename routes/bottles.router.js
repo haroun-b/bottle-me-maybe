@@ -1,7 +1,4 @@
-const {
-  handleError,
-  handleNotExist,
-} = require(`../utils/helpers.function`),
+const { handleNotExist } = require(`../utils/helpers.function`),
   validateId = require(`../middleware/id-validation.middleware`),
   router = require(`express`).Router(),
   Bottle = require(`../models/bottle.model`),
@@ -76,7 +73,7 @@ router.get(`/random`, async (req, res, next) => {
 
     await View.create({ bottle: randomBottle.id, location });
   } catch (err) {
-    handleError(err, res, next);
+    next(err);
   }
 });
 
@@ -100,7 +97,7 @@ router.get(`/:id/views`, validateId, async (req, res, next) => {
 
     res.status(200).json(bottleViews);
   } catch (err) {
-    handleError(err, res, next);
+    next(err);
   }
 });
 
@@ -157,7 +154,7 @@ router.post(`/`, async (req, res, next) => {
       { dailyQuota: { newBottles: remainingQuota - 1 } }
     );
   } catch (err) {
-    handleError(err, res, next);
+    next(err);
   }
 });
 
@@ -193,7 +190,7 @@ router.patch(`/:id`, validateId, async (req, res, next) => {
 
     res.status(200).json(updatedMessage);
   } catch (err) {
-    handleError(err, res, next);
+    next(err);
   }
 });
 

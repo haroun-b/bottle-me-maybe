@@ -3,7 +3,6 @@ const {
   isValidPasswd,
   handleInvalidPasswd,
   handleNotExist,
-  handleError
 } = require(`../utils/helpers.function`),
   router = require(`express`).Router(),
   User = require(`../models/user.model`),
@@ -46,7 +45,7 @@ router.post(`/signup`, async (req, res, next) => {
 
     res.status(201).json({ username, authToken });
   } catch (err) {
-    handleError(err, res, next);
+    next(err);
   }
 });
 
@@ -89,7 +88,7 @@ router.post(`/login`, async (req, res, next) => {
 
     res.status(200).json({ username, authToken });
   } catch (err) {
-    handleError(err, res, next);
+    next(err);
   }
 });
 
@@ -176,7 +175,7 @@ router.patch(`/reset-password`, async (req, res, next) => {
 
     res.status(200).json({ message: `A password reset link was sent to your email!` });
   } catch (err) {
-    handleError(err, res, next);
+    next(err);
   }
 });
 

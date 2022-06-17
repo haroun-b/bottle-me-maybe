@@ -1,9 +1,9 @@
-const { handleError, isValidId, handleInvalidId } = require(`../utils/helpers.function`);
+const { isValidId, handleInvalidId } = require(`../utils/helpers.function`);
 
 
 function validateId(req, res, next) {
   try {
-    const {id} = req.params;
+    const { id } = req.params;
 
     if (!isValidId(id)) {
       handleInvalidId(id, res);
@@ -12,7 +12,7 @@ function validateId(req, res, next) {
 
     next();
   } catch (err) {
-    handleError(err, res, next);
+    next(err);
   }
 }
 

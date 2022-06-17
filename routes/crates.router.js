@@ -1,5 +1,4 @@
 const {
-  handleError,
   structureCrate,
   handleNotExist,
   getCrateParticipant
@@ -34,7 +33,7 @@ router.get(`/`, async (req, res, next) => {
 
     res.status(200).json(allCrates);
   } catch (err) {
-    handleError(err, res, next);
+    next(err);
   }
 });
 
@@ -82,7 +81,7 @@ router.post(`/:id/bottles`, validateId, async (req, res, next) => {
 
     res.status(201).json(createdBottle);
   } catch (err) {
-    handleError(err, res, next);
+    next(err);
   }
 });
 
@@ -138,7 +137,7 @@ router.route(`/:id`)
 
       res.status(200).json({ ...foundCrate._doc, bottles: crateBottles });
     } catch (err) {
-      handleError(err, res, next);
+      next(err);
     }
   })
   // ==========================================================
@@ -186,7 +185,7 @@ router.route(`/:id`)
 
       res.sendStatus(204);
     } catch (err) {
-      handleError(err, res, next);
+      next(err);
     }
   });
 
@@ -212,7 +211,7 @@ router.patch(`/:id/reserve`, validateId, async (req, res, next) => {
     await Crate.findByIdAndUpdate(crateId, { "responder.user": user.id });
     res.sendStatus(200);
   } catch (err) {
-    handleError(err, res, next);
+    next(err);
   }
 });
 
@@ -263,7 +262,7 @@ router.patch(`/:id/reveal-username`, validateId, async (req, res, next) => {
     res.status(200)
       .json({ message: `You've successfully revealed your username!` });
   } catch (err) {
-    handleError(err, res, next);
+    next(err);
   }
 });
 
