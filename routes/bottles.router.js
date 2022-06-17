@@ -1,3 +1,4 @@
+const requestIp = require('request-ip');
 const { handleNotExist } = require(`../utils/helpers.function`),
   validateId = require(`../middleware/id-validation.middleware`),
   router = require(`express`).Router(),
@@ -47,11 +48,12 @@ router.get(`/random`, async (req, res, next) => {
     res.status(200)
       .json({
         ...randomBottle._doc,
-        replyPath: `/crates/${randomBottle.crate}/bottles`,
+        replyPath: `${process.env.BASE_URL}/crates/${randomBottle.crate}/bottles`
       });
 
-    const { ip } = req;
+    const ip = requestIp.getClientIp(req);
     let location = null;
+    
     if (geoip.lookup(ip)) {
       const {
         country,
@@ -92,7 +94,8 @@ router.get(`/:id/views`, validateId, async (req, res, next) => {
 
     const bottleViews = await View.find(
       { bottle: bottleId },
-      { _id: 1, createdAt: 1, location: 1 }
+      { _id: 1, createdAt: 1, location: 1 },
+      {sort: { createdAt: -1 }}
     );
 
     res.status(200).json(bottleViews);
