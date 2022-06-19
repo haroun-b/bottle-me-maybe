@@ -9,11 +9,11 @@ function reserveCrate(crateId, userId) {
   }
 }
 
-async function abandonCrate(crate, user) {
-  if (!crate.isArchived && crate.responder) {
+function abandonCrate(crate, user) {
+  if (!crate.isArchived && crate.responder.user) {
     const promises = [];
 
-    if (crate.creator.user.toString() === user.id) {
+    if (crate.creator.user.id === user.id) {
       promises.push(Crate.findByIdAndUpdate(crate.id, {
         "creator.user": null,
         isArchived: true,
