@@ -31,8 +31,9 @@ function internalError(err, req, res, next) {
 
     if (err.code === 11000) {
       errors = err.keyValue;
+      const key = Object.entries(errors).flat()[0];
 
-      errors.username += ` already exists. Try logging in instead`;
+      errors[key] += ` already exists. Try logging in instead`;
       res.status(400).json({ errors });
       return;
     }
