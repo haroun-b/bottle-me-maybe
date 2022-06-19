@@ -1,9 +1,4 @@
-const {
-  structureCrate,
-  handleNotExist,
-  getCrateParticipant,
-  abandonCrate
-} = require(`../utils/helpers.function`),
+const { handleNotExist, handleIsArchived } = require(`../utils/helpers.function`),
   validateId = require(`../middleware/id-validation.middleware`),
   router = require(`express`).Router(),
   Crate = require(`../models/crate.model`),
@@ -11,13 +6,15 @@ const {
 
 
 // ==========================================================
+// auth
 // ==========================================================
 router.use(require(`../middleware/auth.middleware`));
 router.use(require(`../middleware/access-restricting.middleware`));
+// ==========================================================
 
 // ==========================================================
+// get all crates for current user
 // ==========================================================
-// get all the crates
 router.get(`/`, async (req, res, next) => {
   try {
     const { user } = req;
@@ -28,17 +25,23 @@ router.get(`/`, async (req, res, next) => {
       .populate(`creator.user`)
       .populate(`responder.user`);
 
-    for (let crate of allCrates) {
-      await structureCrate(crate, user);
-    }
+    const promises = [];
+
+    allCrates.forEach(crate => {
+      promises.push(Crate.structure(crate, user));
+    });
+
+    await Promise.all(promises);
 
     res.status(200).json(allCrates);
   } catch (err) {
     next(err);
   }
 });
+// ==========================================================
 
 // ==========================================================
+// get all bottle from one crate by crate's id
 // ==========================================================
 router.post(`/:id/bottles`, validateId, async (req, res, next) => {
   try {
@@ -46,32 +49,39 @@ router.post(`/:id/bottles`, validateId, async (req, res, next) => {
       { user } = req,
       crateId = req.params.id;
 
-    const foundCrate = await Crate.findById(crateId);
+    const foundCrate = await Crate.findOne({
+      _id: crateId,
+      $or: [
+        { "creator.user": user.id },
+        { "responder.user": user.id },
+        { "responder.user": null }
+      ]
+    });
+
     if (!foundCrate) {
       handleNotExist(`crate`, crateId, res);
       return;
     }
 
-    // condition: author cannot reply to own first bottle
-    if (
-      foundCrate.creator.user.toString() === user.id &&
-      !foundCrate.responder.user
-    ) {
-      res.status(403)
-        .json({
-          errors: {
-            crate: `To add another bottle to crate: '${crateId}', another user must join it first`
-          }
-        });
+    if (foundCrate.isArchived) {
+      handleIsArchived(crateId, res);
       return;
     }
 
-    const crateResponder = {
-      "responder.user": user.id,
-      "responder.isAnonymous": !revealUsername
-    };
+    if (!foundCrate.responder.user) {
+      // condition: author cannot reply to own first bottle
+      if (foundCrate.creator.user.toString() === user.id) {
+        res.status(403)
+          .json({
+            errors: {
+              crate: `To add another bottle to crate: '${crateId}', another user must join it first`
+            }
+          });
+        return;
+      }
 
-    await Crate.findByIdAndUpdate(crateId, crateResponder);
+      const reservedCrate = await Crate.findByIdAndReserve(crateId, user.id, !revealUsername);
+    }
 
     const createdBottle = await Bottle.create({
       author: user.id,
@@ -85,11 +95,14 @@ router.post(`/:id/bottles`, validateId, async (req, res, next) => {
     next(err);
   }
 });
+// ==========================================================
 
 // ==========================================================
 // ==========================================================
 router.route(`/:id`)
-  // get one crate
+  // ==========================================================
+  // get one crate by id
+  // ==========================================================
   .get(validateId, async (req, res, next) => {
     try {
       const { user } = req,
@@ -117,8 +130,8 @@ router.route(`/:id`)
       }
 
       const creatorId = foundCrate.creator.user.id,
-        crateCreator = getCrateParticipant(foundCrate, user, "creator"),
-        crateResponder = getCrateParticipant(foundCrate, user, "responder");
+        crateCreator = Crate.getParticipant(foundCrate, user, "creator"),
+        crateResponder = Crate.getParticipant(foundCrate, user, "responder");
 
       foundCrate._doc.creator = crateCreator;
       foundCrate._doc.responder = crateResponder;
@@ -129,7 +142,7 @@ router.route(`/:id`)
       );
 
       for (let bottle of crateBottles) {
-        if (bottle.author.equals(creatorId)) {
+        if (bottle.author?.toString() === creatorId) {
           bottle._doc.author = crateCreator;
         } else {
           bottle._doc.author = crateResponder;
@@ -142,7 +155,10 @@ router.route(`/:id`)
     }
   })
   // ==========================================================
-  // abandon a crate
+
+  // ==========================================================
+  // abandon a crate by id
+  // ==========================================================
   .delete(validateId, async (req, res, next) => {
     try {
       const { user } = req,
@@ -163,34 +179,48 @@ router.route(`/:id`)
         return;
       }
 
-      await Promise.all(abandonCrate(foundCrate, user));
+      await Promise.all(Crate.abandon(foundCrate, user));
 
       res.sendStatus(204);
     } catch (err) {
       next(err);
     }
   });
+// ==========================================================
 
 // ==========================================================
+// crate reservation
 // ==========================================================
-// reserve spot on crate
+// reserve a crate
+
 router.patch(`/:id/reserve`, validateId, async (req, res, next) => {
   try {
     const { user } = req,
       crateId = req.params.id;
 
-    const foundCrate = await Crate.findOne({
-      _id: crateId,
-      "responder.user": null,
-      isArchived: false,
-    });
+    const bottlesCount = await Bottle.count({ crate: crateId });
 
-    if (!foundCrate) {
-      handleNotExist(`crate`, crateId, res);
+    if (bottlesCount > 1) {
+      res.status(403)
+        .json({
+          errors: {
+            crate: `'${crateId}' has already been reserved`
+          }
+        });
+    }
+
+    const reservedCrate = await Crate.findByIdAndReserve(crateId, user.id);
+
+    if (!reservedCrate) {
+      res.status(404)
+        .json({
+          errors: {
+            crate: `'${crateId}' is either not found. or cannot be reserved`
+          }
+        });
       return;
     }
 
-    await Crate.findByIdAndUpdate(crateId, { "responder.user": user.id });
     res.sendStatus(200);
   } catch (err) {
     next(err);
@@ -198,8 +228,25 @@ router.patch(`/:id/reserve`, validateId, async (req, res, next) => {
 });
 
 // ==========================================================
+// cancel a reservation for one crate
+
+router.delete(`/:id/reserve`, validateId, async (req, res, next) => {
+  try {
+    const { user } = req,
+      crateId = req.params.id;
+
+    await Crate.findByIdAndUnreserve(crateId, user.id);
+
+    res.sendStatus(200);
+  } catch (err) {
+    next(err);
+  }
+});
+// ==========================================================
+
 // ==========================================================
 // reveal username for one crate
+// ==========================================================
 router.patch(`/:id/reveal-username`, validateId, async (req, res, next) => {
   try {
     const { user } = req,
@@ -218,12 +265,7 @@ router.patch(`/:id/reveal-username`, validateId, async (req, res, next) => {
     }
 
     if (foundCrate.isArchived) {
-      res.status(400)
-        .json({
-          errors: {
-            crate: `${crateId} is archived`
-          }
-        });
+      handleIsArchived(crateId, res);
       return;
     }
 
@@ -247,6 +289,7 @@ router.patch(`/:id/reveal-username`, validateId, async (req, res, next) => {
     next(err);
   }
 });
+// ==========================================================
 
 
 module.exports = router;

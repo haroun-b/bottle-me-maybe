@@ -1,7 +1,7 @@
 {
   "name": "bottle-me-maybe",
   "version": "1.0.0",
-  "description": "",
+  "description": "A simple express app which allows it's users to exchange messages (ie: Bottles) using HTTP",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",

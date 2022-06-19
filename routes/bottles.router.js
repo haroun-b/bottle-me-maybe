@@ -9,10 +9,13 @@ const { handleNotExist } = require(`../utils/helpers.function`),
   geoip = require("geoip-lite");
 
 // ==========================================================
+// authentication
 // ==========================================================
 router.use(require(`../middleware/auth.middleware`));
+// ==========================================================
 
 // ==========================================================
+// get a random bottle
 // ==========================================================
 router.get(`/random`, async (req, res, next) => {
   try {
@@ -78,13 +81,14 @@ router.get(`/random`, async (req, res, next) => {
     next(err);
   }
 });
+// ==========================================================
 
 // ==========================================================
+// get all views for one bottle by bottle's id
 // ==========================================================
 router.get(`/:id/views`, validateId, async (req, res, next) => {
   try {
-    const { user } = req,
-      bottleId = req.params.id;
+      const bottleId = req.params.id;
 
     const foundBottle = await Bottle.findById(bottleId);
     if (!foundBottle) {
@@ -103,12 +107,16 @@ router.get(`/:id/views`, validateId, async (req, res, next) => {
     next(err);
   }
 });
+// ==========================================================
 
 // ==========================================================
+// authorisation
 // ==========================================================
 router.use(require(`../middleware/access-restricting.middleware`));
+// ==========================================================
 
 // ==========================================================
+// create a new bottle
 // ==========================================================
 router.post(`/`, async (req, res, next) => {
   try {
@@ -160,8 +168,10 @@ router.post(`/`, async (req, res, next) => {
     next(err);
   }
 });
+// ==========================================================
 
 // ==========================================================
+// find a bottle by its id and update it
 // ==========================================================
 router.patch(`/:id`, validateId, async (req, res, next) => {
   try {
@@ -196,6 +206,7 @@ router.patch(`/:id`, validateId, async (req, res, next) => {
     next(err);
   }
 });
+// ==========================================================
 
 
 module.exports = router;
