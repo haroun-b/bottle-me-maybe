@@ -50,7 +50,7 @@ async function structureCrate(crate, user) {
 
   if (newestBottle) {
     newestBottle._doc.author =
-      newestBottle.author.equals(crate.creator.user.id)
+      newestBottle.author.equals(crate.creator.user?.id)
         ? crateCreator
         : crateResponder;
     crate._doc.newestBottle = newestBottle;

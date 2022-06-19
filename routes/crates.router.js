@@ -227,7 +227,7 @@ router.patch(`/:id/reveal-username`, validateId, async (req, res, next) => {
       return;
     }
 
-    if (foundCrate.creator.user.toString() === user.id) {
+    if (foundCrate.creator.user.id === user.id) {
       if (foundCrate.creator.isAnonymous) {
         await Crate.findByIdAndUpdate(crateId, {
           "creator.isAnonymous": false,
@@ -242,7 +242,7 @@ router.patch(`/:id/reveal-username`, validateId, async (req, res, next) => {
     }
 
     res.status(200)
-      .json({ message: `You've successfully revealed your username!` });
+      .json({ message: `You are no longer anonymous for crate ${crateId}!` });
   } catch (err) {
     next(err);
   }
