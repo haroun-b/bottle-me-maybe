@@ -18,6 +18,7 @@ const userSchema = new Schema(
     },
     email: {
       type: String,
+      unique: true,
       validate: {
         validator: (str) => {
           if (str.length > 254) {
