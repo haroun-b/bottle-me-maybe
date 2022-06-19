@@ -1,6 +1,6 @@
 # Bottle Me Maybe
 
-A collaboration between Caetano S. and Haroun B. as Project no 2 of the Ironhack WebDev Bootcamp, Bottle Me Maybe is a simple express app which allows it's users to exchange messages "ie: Bottles" using HTTP.
+A collaboration between Caetano S. and Haroun B. as Project no 2 of the Ironhack WebDev Bootcamp, Bottle Me Maybe is a simple express app which allows its users to exchange messages "ie: Bottles" using HTTP.
 
 Bottles are exchanged anonymously by default. But users may reveal their usernames at any point.
 
@@ -18,6 +18,8 @@ This implementation uses the following:
 
 ## What's next?
 
+- More testing.
+- Better documentation.
 - Add some basic security and email verification.
 - Implement real-time communication using websockets.
 - Add a front end.
