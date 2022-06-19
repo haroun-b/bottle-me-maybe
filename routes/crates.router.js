@@ -212,7 +212,12 @@ router.patch(`/:id/reserve`, validateId, async (req, res, next) => {
     const reservedCrate = await Crate.findByIdAndReserve(crateId, user.id);
 
     if (!reservedCrate) {
-      handleNotExist(`crate`, crateId, res);
+      res.status(404)
+        .json({
+          errors: {
+            crate: `'${crateId}' is either not found. or cannot be reserved`
+          }
+        });
       return;
     }
 

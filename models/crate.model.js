@@ -49,7 +49,7 @@ crateSchema.statics.findByIdAndReserve = function (crateId, userId, isAnonymous 
       _id: crateId,
       isArchived: false,
       $or: [{ "responder.user": null }, { "responder.user": userId }],
-      "creator": { $ne: userId }
+      "creator.user": { $ne: userId }
     },
     { responder: { user: userId, isAnonymous } },
     { new: true }
