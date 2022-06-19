@@ -142,7 +142,7 @@ router.route(`/:id`)
       );
 
       for (let bottle of crateBottles) {
-        if (bottle.author.equals(creatorId)) {
+        if (bottle.author?.toString() === creatorId) {
           bottle._doc.author = crateCreator;
         } else {
           bottle._doc.author = crateResponder;

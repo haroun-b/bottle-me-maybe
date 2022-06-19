@@ -166,12 +166,12 @@ crateSchema.statics.structure = async function (crate, user) {
     { sort: { createdAt: -1 }, limit: 1 }
   );
 
-  const crateCreator = getParticipant(crate, user, `creator`);
-  const crateResponder = getParticipant(crate, user, `responder`);
+  const crateCreator = this.getParticipant(crate, user, `creator`);
+  const crateResponder = this.getParticipant(crate, user, `responder`);
 
   if (newestBottle) {
     newestBottle._doc.author =
-      newestBottle.author.equals(crate.creator.user?.id)
+      newestBottle.author?.toString() === crate.creator.user?.id
         ? crateCreator
         : crateResponder;
     crate._doc.newestBottle = newestBottle;
