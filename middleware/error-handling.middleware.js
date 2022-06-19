@@ -23,7 +23,7 @@ function internalError(err, req, res, next) {
     res.status(401).json({ authentication });
     return;
   }
-  
+
   const mongooseErrors = [`ValidatorError`, `CastError`, `ValidationError`, `MongoServerError`];
   if (mongooseErrors.includes(err.name)) {
     let errors = {};
@@ -52,7 +52,7 @@ function internalError(err, req, res, next) {
           errors[e.path] = `${e.path} must be of type: 'string'`;
           break;
         default:
-          errors[e.path] = `${e.path} ${e.message}`;
+          errors[e.path] = e.path === `email` ? `${e.message}` : `${e.path} ${e.message}`;
       }
     }
 
