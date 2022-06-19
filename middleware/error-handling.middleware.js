@@ -1,6 +1,4 @@
-const router = require(`express`).Router();
-
-router.use((req, res, next) => {
+function notFound(req, res, next) {
   // runs whenever the requested resource is not found
   res.status(404)
     .json({
@@ -8,9 +6,9 @@ router.use((req, res, next) => {
         resource: `Requested resource not found`
       }
     });
-});
+};
 
-router.use((err, req, res, next) => {
+function internalError(err, req, res, next) {
   console.error("ERROR", req.method, req.path, err);
 
   if (err.name.includes(`Token`)) {
@@ -25,7 +23,7 @@ router.use((err, req, res, next) => {
     res.status(401).json({ authentication });
     return;
   }
-
+  
   const mongooseErrors = [`ValidatorError`, `CastError`, `ValidationError`, `MongoServerError`];
   if (mongooseErrors.includes(err.name)) {
     let errors = {};
@@ -71,7 +69,7 @@ router.use((err, req, res, next) => {
         }
       });
   }
-});
+}
 
 
-module.exports = router;
+module.exports = [notFound, internalError];
