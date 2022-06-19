@@ -1,19 +1,17 @@
-const Crate = require(`../models/crate.model`);
-
 const {
-  reserveCrate,
   isValidPasswd,
   handleInvalidPasswd,
-  handleNotExist,
-  abandonCrate,
+  handleNotExist
 } = require(`../utils/helpers.function`),
   router = require(`express`).Router(),
   User = require(`../models/user.model`),
+  Crate = require(`../models/crate.model`),
   bcrypt = require(`bcryptjs`),
   jwt = require(`jsonwebtoken`),
   nodemailer = require(`nodemailer`);
 
 // ==========================================================
+// signup
 // ==========================================================
 router.post(`/signup`, async (req, res, next) => {
   try {
@@ -38,7 +36,7 @@ router.post(`/signup`, async (req, res, next) => {
     const createdUser = await User.create(user);
 
     if (crateId) {
-      await reserveCrate(crateId, createdUser.id);
+      await Crate.findByIdAndReserve(crateId, createdUser.id);
     }
 
     const authToken = jwt.sign({ username }, process.env.TOKEN_SECRET, {
@@ -51,8 +49,10 @@ router.post(`/signup`, async (req, res, next) => {
     next(err);
   }
 });
+// ==========================================================
 
 // ==========================================================
+// login
 // ==========================================================
 router.post(`/login`, async (req, res, next) => {
   try {
@@ -81,7 +81,7 @@ router.post(`/login`, async (req, res, next) => {
     }
 
     if (crateId) {
-      await reserveCrate(crateId, foundUser.id);
+      await Crate.findByIdAndReserve(crateId, foundUser.id);
     }
 
     const authToken = jwt.sign({ username }, process.env.TOKEN_SECRET, {
@@ -94,8 +94,10 @@ router.post(`/login`, async (req, res, next) => {
     next(err);
   }
 });
+// ==========================================================
 
 // ==========================================================
+// reset the user's password
 // ==========================================================
 router.patch(`/reset-password`, async (req, res, next) => {
   try {
@@ -181,12 +183,18 @@ router.patch(`/reset-password`, async (req, res, next) => {
     next(err);
   }
 });
-
+// ==========================================================
 
 // ==========================================================
+// auth
 // ==========================================================
 router.use(require(`../middleware/auth.middleware`));
 router.use(require(`../middleware/access-restricting.middleware`));
+// ==========================================================
+
+// ==========================================================
+// delete user account
+// ==========================================================
 router.delete(`/`, async (req, res, next) => {
   try {
     const { user } = req;
@@ -201,7 +209,7 @@ router.delete(`/`, async (req, res, next) => {
       const promises = [];
 
       allCrates.forEach(crate => {
-        promises.push(abandonCrate(crate, user));
+        promises.push(Crate.abandon(crate, user));
       });
 
       await Promise.all(promises.flat());
@@ -213,6 +221,7 @@ router.delete(`/`, async (req, res, next) => {
     next(error);
   }
 });
+// ==========================================================
 
 
 module.exports = router;

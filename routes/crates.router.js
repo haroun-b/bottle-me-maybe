@@ -1,9 +1,4 @@
-const {
-  structureCrate,
-  handleNotExist,
-  getCrateParticipant,
-  abandonCrate,
-} = require(`../utils/helpers.function`),
+const { handleNotExist, handleIsArchived } = require(`../utils/helpers.function`),
   validateId = require(`../middleware/id-validation.middleware`),
   router = require(`express`).Router(),
   Crate = require(`../models/crate.model`),
@@ -11,7 +6,7 @@ const {
 
 
 // ==========================================================
-// authentication
+// auth
 // ==========================================================
 router.use(require(`../middleware/auth.middleware`));
 router.use(require(`../middleware/access-restricting.middleware`));
@@ -30,9 +25,13 @@ router.get(`/`, async (req, res, next) => {
       .populate(`creator.user`)
       .populate(`responder.user`);
 
-    for (let crate of allCrates) {
-      await structureCrate(crate, user);
-    }
+    const promises = [];
+
+    allCrates.forEach(crate => {
+      promises.push(Crate.structure(crate, user));
+    });
+
+    await Promise.all(promises);
 
     res.status(200).json(allCrates);
   } catch (err) {
@@ -50,32 +49,39 @@ router.post(`/:id/bottles`, validateId, async (req, res, next) => {
       { user } = req,
       crateId = req.params.id;
 
-    const foundCrate = await Crate.findById(crateId);
+    const foundCrate = await Crate.findOne({
+      _id: crateId,
+      $or: [
+        { "creator.user": user.id },
+        { "responder.user": user.id },
+        { "responder.user": null }
+      ]
+    });
+
     if (!foundCrate) {
       handleNotExist(`crate`, crateId, res);
       return;
     }
 
-    // condition: author cannot reply to own first bottle
-    if (
-      foundCrate.creator.user.toString() === user.id &&
-      !foundCrate.responder.user
-    ) {
-      res.status(403)
-        .json({
-          errors: {
-            crate: `To add another bottle to crate: '${crateId}', another user must join it first`
-          }
-        });
+    if (foundCrate.isArchived) {
+      handleIsArchived(crateId, res);
       return;
     }
 
-    const crateResponder = {
-      "responder.user": user.id,
-      "responder.isAnonymous": !revealUsername
-    };
+    if (!foundCrate.responder.user) {
+      // condition: author cannot reply to own first bottle
+      if (foundCrate.creator.user.toString() === user.id) {
+        res.status(403)
+          .json({
+            errors: {
+              crate: `To add another bottle to crate: '${crateId}', another user must join it first`
+            }
+          });
+        return;
+      }
 
-    await Crate.findByIdAndUpdate(crateId, crateResponder);
+      const reservedCrate = await Crate.findByIdAndReserve(crateId, user.id, !revealUsername);
+    }
 
     const createdBottle = await Bottle.create({
       author: user.id,
@@ -124,8 +130,8 @@ router.route(`/:id`)
       }
 
       const creatorId = foundCrate.creator.user.id,
-        crateCreator = getCrateParticipant(foundCrate, user, "creator"),
-        crateResponder = getCrateParticipant(foundCrate, user, "responder");
+        crateCreator = Crate.getParticipant(foundCrate, user, "creator"),
+        crateResponder = Crate.getParticipant(foundCrate, user, "responder");
 
       foundCrate._doc.creator = crateCreator;
       foundCrate._doc.responder = crateResponder;
@@ -173,7 +179,7 @@ router.route(`/:id`)
         return;
       }
 
-      await Promise.all(abandonCrate(foundCrate, user));
+      await Promise.all(Crate.abandon(foundCrate, user));
 
       res.sendStatus(204);
     } catch (err) {
@@ -191,6 +197,17 @@ router.patch(`/:id/reserve`, validateId, async (req, res, next) => {
   try {
     const { user } = req,
       crateId = req.params.id;
+
+    const bottlesCount = await Bottle.count({ crate: crateId });
+
+    if (bottlesCount > 1) {
+      res.status(403)
+        .json({
+          errors: {
+            crate: `'${crateId}' has already been reserved`
+          }
+        });
+    }
 
     const reservedCrate = await Crate.findByIdAndReserve(crateId, user.id);
 
@@ -243,12 +260,7 @@ router.patch(`/:id/reveal-username`, validateId, async (req, res, next) => {
     }
 
     if (foundCrate.isArchived) {
-      res.status(400)
-        .json({
-          errors: {
-            crate: `${crateId} is archived`
-          }
-        });
+      handleIsArchived(crateId, res);
       return;
     }
 
