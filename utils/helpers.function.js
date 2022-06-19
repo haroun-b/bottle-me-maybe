@@ -3,12 +3,6 @@ const Bottle = require(`../models/bottle.model`);
 const Crate = require(`../models/crate.model`);
 
 
-function reserveCrate(crateId, userId) {
-  if (isValidId(crateId)) {
-    return Crate.findOneAndUpdate({ _id: crateId, "responder.user": null }, { responder: { user: userId } });
-  }
-}
-
 function abandonCrate(crate, user) {
   if (!crate.isArchived && crate.responder.user) {
     const promises = [];
@@ -31,7 +25,7 @@ function abandonCrate(crate, user) {
 
     return promises;
   }
-  
+
   return [
     Crate.findByIdAndDelete(crate.id),
     Bottle.deleteMany({ crate: crate.id })
@@ -117,6 +111,7 @@ function handleNotExist(key, value, res) {
 
 module.exports = {
   reserveCrate,
+  unreserveCrate,
   abandonCrate,
   structureCrate,
   getCrateParticipant,

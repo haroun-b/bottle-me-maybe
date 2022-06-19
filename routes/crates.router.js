@@ -2,7 +2,7 @@ const {
   structureCrate,
   handleNotExist,
   getCrateParticipant,
-  abandonCrate
+  abandonCrate,
 } = require(`../utils/helpers.function`),
   validateId = require(`../middleware/id-validation.middleware`),
   router = require(`express`).Router(),
@@ -11,13 +11,15 @@ const {
 
 
 // ==========================================================
+// authentication
 // ==========================================================
 router.use(require(`../middleware/auth.middleware`));
 router.use(require(`../middleware/access-restricting.middleware`));
+// ==========================================================
 
 // ==========================================================
+// get all crates for current user
 // ==========================================================
-// get all the crates
 router.get(`/`, async (req, res, next) => {
   try {
     const { user } = req;
@@ -37,8 +39,10 @@ router.get(`/`, async (req, res, next) => {
     next(err);
   }
 });
+// ==========================================================
 
 // ==========================================================
+// get all bottle from one crate by crate's id
 // ==========================================================
 router.post(`/:id/bottles`, validateId, async (req, res, next) => {
   try {
@@ -85,11 +89,14 @@ router.post(`/:id/bottles`, validateId, async (req, res, next) => {
     next(err);
   }
 });
+// ==========================================================
 
 // ==========================================================
 // ==========================================================
 router.route(`/:id`)
-  // get one crate
+  // ==========================================================
+  // get one crate by id
+  // ==========================================================
   .get(validateId, async (req, res, next) => {
     try {
       const { user } = req,
@@ -142,7 +149,10 @@ router.route(`/:id`)
     }
   })
   // ==========================================================
-  // abandon a crate
+
+  // ==========================================================
+  // abandon a crate by id
+  // ==========================================================
   .delete(validateId, async (req, res, next) => {
     try {
       const { user } = req,
@@ -170,27 +180,25 @@ router.route(`/:id`)
       next(err);
     }
   });
+// ==========================================================
 
 // ==========================================================
+// crate reservation
 // ==========================================================
-// reserve spot on crate
+// reserve a crate
+
 router.patch(`/:id/reserve`, validateId, async (req, res, next) => {
   try {
     const { user } = req,
       crateId = req.params.id;
 
-    const foundCrate = await Crate.findOne({
-      _id: crateId,
-      "responder.user": null,
-      isArchived: false,
-    });
+    const reservedCrate = await Crate.findByIdAndReserve(crateId, user.id);
 
-    if (!foundCrate) {
+    if (!reservedCrate) {
       handleNotExist(`crate`, crateId, res);
       return;
     }
 
-    await Crate.findByIdAndUpdate(crateId, { "responder.user": user.id });
     res.sendStatus(200);
   } catch (err) {
     next(err);
@@ -198,8 +206,25 @@ router.patch(`/:id/reserve`, validateId, async (req, res, next) => {
 });
 
 // ==========================================================
+// cancel a reservation for one crate
+
+router.delete(`/:id/reserve`, validateId, async (req, res, next) => {
+  try {
+    const { user } = req,
+      crateId = req.params.id;
+
+    await Crate.findByIdAndUnreserve(crateId, user.id);
+
+    res.sendStatus(200);
+  } catch (err) {
+    next(err);
+  }
+});
+// ==========================================================
+
 // ==========================================================
 // reveal username for one crate
+// ==========================================================
 router.patch(`/:id/reveal-username`, validateId, async (req, res, next) => {
   try {
     const { user } = req,
@@ -247,6 +272,7 @@ router.patch(`/:id/reveal-username`, validateId, async (req, res, next) => {
     next(err);
   }
 });
+// ==========================================================
 
 
 module.exports = router;
