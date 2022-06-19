@@ -37,7 +37,7 @@ function handleNotExist(key, value, res) {
 }
 
 function handleIsArchived(crateId, res) {
-  res.status(400)
+  res.status(403)
     .json({
       errors: {
         crate: `${crateId} is archived`

@@ -1,4 +1,3 @@
-const requestIp = require('request-ip');
 const { handleNotExist } = require(`../utils/helpers.function`),
   validateId = require(`../middleware/id-validation.middleware`),
   router = require(`express`).Router(),
@@ -6,6 +5,7 @@ const { handleNotExist } = require(`../utils/helpers.function`),
   Crate = require(`../models/crate.model`),
   User = require(`../models/user.model`),
   View = require("../models/view.model"),
+  requestIp = require('request-ip'),
   geoip = require("geoip-lite");
 
 // ==========================================================
@@ -56,7 +56,7 @@ router.get(`/random`, async (req, res, next) => {
 
     const ip = requestIp.getClientIp(req);
     let location = null;
-    
+
     if (geoip.lookup(ip)) {
       const {
         country,
@@ -88,7 +88,7 @@ router.get(`/random`, async (req, res, next) => {
 // ==========================================================
 router.get(`/:id/views`, validateId, async (req, res, next) => {
   try {
-      const bottleId = req.params.id;
+    const bottleId = req.params.id;
 
     const foundBottle = await Bottle.findById(bottleId);
     if (!foundBottle) {
@@ -99,7 +99,7 @@ router.get(`/:id/views`, validateId, async (req, res, next) => {
     const bottleViews = await View.find(
       { bottle: bottleId },
       { _id: 1, createdAt: 1, location: 1 },
-      {sort: { createdAt: -1 }}
+      { sort: { createdAt: -1 } }
     );
 
     res.status(200).json(bottleViews);
