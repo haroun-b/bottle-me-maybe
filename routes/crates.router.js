@@ -80,7 +80,7 @@ router.post(`/:id/bottles`, validateId, async (req, res, next) => {
         return;
       }
 
-      const reservedCrate = await Crate.findByIdAndReserve(crateId, user.id, !revealUsername);
+      await Crate.findByIdAndReserve(crateId, user.id, !revealUsername);
     }
 
     const createdBottle = await Bottle.create({
