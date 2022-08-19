@@ -12,7 +12,7 @@ This implementation uses the following:
 - JWT for authentication.
 - Hekoru for deployment
 
-## [Documentation](https://documenter.getpostman.com/view/21234692/UzBjso2G)
+## [Documentation](https://documenter.getpostman.com/view/21234692/VUqoQyU1)
 
 ## [API](https://bottle-me-maybe.herokuapp.com/)
 
