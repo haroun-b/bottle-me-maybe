@@ -4,6 +4,8 @@ A collaboration between Caetano S. and Haroun B. as Project no 2 of the Ironhack
 
 To get started a user can fetch a bottle at random. They then can respond, which starts a conversation “ie: Crate”. Or throw it back into circulation and fetch another one.
 
+Users can also see the history of a floating bottle and in which cities it has been.
+
 ## About Implementation
 
 This implementation uses the following:
